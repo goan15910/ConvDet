@@ -29,7 +29,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string(
     'mode', 'image', """'image' or 'video'.""")
 tf.app.flags.DEFINE_string(
-    'checkpoint', './data/model_checkpoints/squeezeDet/model.ckpt-87000',
+    'checkpoint', './data/model_checkpoints/vgg16/model.ckpt-101500',
     """Path to the model parameter file.""")
 tf.app.flags.DEFINE_string(
     'input_path', './data/sample.png',
@@ -55,11 +55,11 @@ def video_demo():
 
   with tf.Graph().as_default():
     # Load model
-    mc = kitti_squeezeDet_config()
+    mc = kitti_vgg16_config()
     mc.BATCH_SIZE = 1
     # model parameters will be restored from checkpoint
     mc.LOAD_PRETRAINED_MODEL = False
-    model = SqueezeDet(mc, FLAGS.gpu)
+    model = VGG16ConvDet(mc, FLAGS.gpu)
 
     saver = tf.train.Saver(model.model_params)
 
@@ -152,11 +152,11 @@ def image_demo():
 
   with tf.Graph().as_default():
     # Load model
-    mc = kitti_squeezeDet_config()
+    mc = kitti_vgg16_config()
     mc.BATCH_SIZE = 1
     # model parameters will be restored from checkpoint
     mc.LOAD_PRETRAINED_MODEL = False
-    model = SqueezeDet(mc, FLAGS.gpu)
+    model = VGG16ConvDet(mc, FLAGS.gpu)
 
     saver = tf.train.Saver(model.model_params)
 

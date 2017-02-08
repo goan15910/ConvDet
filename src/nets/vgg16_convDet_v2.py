@@ -1,6 +1,6 @@
 # Author: Bichen Wu (bichen@berkeley.edu) 08/25/2016
 
-"""VGG16+ConvDet model."""
+"""VGG16-ConvDet-v2 model."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -17,7 +17,7 @@ import tensorflow as tf
 from nn_skeleton import ModelSkeleton
 
 
-class VGG16ConvDet(ModelSkeleton):
+class VGG16ConvDetV2(ModelSkeleton):
   def __init__(self, mc, gpu_id):
     with tf.device('/gpu:{}'.format(gpu_id)):
       ModelSkeleton.__init__(self, mc)
@@ -87,9 +87,15 @@ class VGG16ConvDet(ModelSkeleton):
       conv5_3 = self._conv_layer(
           'conv5_3', conv5_2, filters=512, size=3, stride=1)
 
-    dropout5 = tf.nn.dropout(conv5_3, self.keep_prob, name='drop6')
+    with tf.variable_scope('conv6') as scope:
+      conv6_1 = self._conv_layer(
+          'conv6_1', conv5_3, filters=1024, size=3, stride=1)
+      conv6_2 = self._conv_layer(
+          'conv6_2', conv6_1, filters=1024, size=3, stride=1)
+
+    dropout6 = tf.nn.dropout(conv6_2, self.keep_prob, name='drop6')
 
     num_output = mc.ANCHOR_PER_GRID * (mc.CLASSES + 1 + 4)
     self.preds = self._conv_layer(
-        'conv6', dropout5, filters=num_output, size=3, stride=1,
+        'conv7', dropout6, filters=num_output, size=3, stride=1,
         padding='SAME', xavier=False, relu=False, stddev=0.0001)

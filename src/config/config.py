@@ -8,8 +8,8 @@ import numpy as np
 from easydict import EasyDict as edict
 
 def base_model_config(dataset='PASCAL_VOC'):
-  assert dataset.upper()=='PASCAL_VOC' or dataset.upper()=='KITTI', \
-      'Currently only support PASCAL_VOC or KITTI dataset'
+  assert dataset.upper() in ['PASCAL_VOC', 'VID', 'KITTI'], \
+      'Either PASCAL_VOC / VID / KITTI'
 
   cfg = edict()
 
@@ -22,11 +22,21 @@ def base_model_config(dataset='PASCAL_VOC'):
                        'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
                        'horse', 'motorbike', 'person', 'pottedplant', 'sheep',
                        'sofa', 'train', 'tvmonitor')
+  elif cfg.DATASET == 'VID':
+    cfg.CLASS_NAMES = ('airplane', 'antelope', 'bear', 'bicycle', 'bird', 'bus',
+                       'car', 'cattle', 'dog', 'domestic_cat', 'elephant',
+                       'fox', 'giant_panda', 'hamster', 'horse', 'lion', 'lizard',
+                       'monkey', 'motorcycle', 'rabbit', 'red_panda', 'sheep',
+                       'snake', 'squirrel', 'tiger', 'train', 'turtle', 'watercraft',
+                       'whale', 'zebra')
   elif cfg.DATASET == 'KITTI':
     cfg.CLASS_NAMES = ('car', 'pedestrian', 'cyclist')
 
   # number of categories to classify
   cfg.CLASSES = len(cfg.CLASS_NAMES)    
+
+  # type of the loss, either YOLO / SQT
+  cfg.LOSS_TYPE = 'SQT'
 
   # ROI pooling output width
   cfg.GRID_POOL_WIDTH = 7

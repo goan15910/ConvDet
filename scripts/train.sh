@@ -1,57 +1,76 @@
 #!/bin/bash
+# Usage: CUDA_VISIBLE_DEVICES=GPU ./scripts/train.sh GPU WEIGHT DATASET
+
+export PYTHONUNBUFFERED="True"
+
+GPU=$1
+WEIGHT=$2
+DATASET=$3
+
+#NET=vgg16
+NET=vgg16_v2
+
+case $DATASET in
+  PASCAL_VOC)
+    echo "Use PASCAL_VOC dataset"
+    DATA_PATH=/tmp3/jeff/VOCdevkit2007
+    IMAGE_SET=trainval
+    ;;
+  VID)
+    echo "Use VID dataset"
+    DATA_PATH=/tmp3/jeff/vid/ILSVRC2015
+    IMAGE_SET=train
+    ;;
+  KITTI)
+    echo "Use KITTI dataset"
+    DATA_PATH=data/KITTI
+    IMAGE_SET=train
+    ;;
+  *)
+    echo "No dataset given"
+    exit
+    ;;
+esac
+
+DEBUG=false
+TRAIN_DIR=experiments/vgg16/train/${DATASET}
+if [ ! -d "$TRAIN_DIR" ]; then
+    mkdir "$TRAIN_DIR"
+fi
+
+LOG_DIR=experiments/logs
+if [ ! -d "$LOG_DIR" ]; then
+    mkdir "$LOG_DIR"
+fi
+
+LOG="$LOG_DIR/${NET}_${DATASET}_train.txt.`date +'%Y-%m-%d_%H-%M-%S'`"
+exec &> >(tee -a "$LOG")
+echo Logging output to "$LOG"
 
 # =========================================================================== #
-# command for squeezeDet:
+# command for VGG16:
 # =========================================================================== #
-python ./src/train.py \
-  --dataset=KITTI \
-  --pretrained_model_path=./data/SqueezeNet/squeezenet_v1.1.pkl \
-  --data_path=./data/KITTI \
-  --image_set=train \
-  --train_dir=/tmp/bichen/logs/SqueezeDet/train \
-  --net=squeezeDet \
-  --summary_step=100 \
-  --checkpoint_step=500 \
-  --gpu=0
 
-# =========================================================================== #
-# command for squeezeDet+:
-# =========================================================================== #
-# python ./src/train.py \
-#   --dataset=KITTI \
-#   --pretrained_model_path=./data/SqueezeNet/squeezenet_v1.0_SR_0.750.pkl \
-#   --data_path=./data/KITTI \
-#   --image_set=train \
-#   --train_dir=/tmp/bichen/logs/SqueezeDetPlus/train \
-#   --net=squeezeDet+ \
-#   --summary_step=100 \
-#   --checkpoint_step=500 \
-#   --gpu=0
-
-# =========================================================================== #
-# command for vgg16:
-# =========================================================================== #
-# python ./src/train.py \
-#   --dataset=KITTI \
-#   --pretrained_model_path=./data/VGG16/VGG_ILSVRC_16_layers_weights.pkl \
-#   --data_path=./data/KITTI \
-#   --image_set=train \
-#   --train_dir=/tmp/bichen/logs/vgg16/train \
-#   --net=vgg16 \
-#   --summary_step=100 \
-#   --checkpoint_step=500 \
-#   --gpu=0
-
-# =========================================================================== #
-# command for resnet50:
-# =========================================================================== #
-# python ./src/train.py \
-#   --dataset=KITTI \
-#   --pretrained_model_path=./data/ResNet/ResNet-50-weights.pkl \
-#   --data_path=./data/KITTI \
-#   --image_set=train \
-#   --train_dir=/tmp/bichen/logs/resnet/train \
-#   --net=resnet50 \
-#   --summary_step=100 \
-#   --checkpoint_step=500 \
-#   --gpu=0
+if [ $DEBUG = true ]; then
+  python -m ipdb ./src/train.py \
+   --dataset=${DATASET} \
+   --pretrained_model_path=${WEIGHT} \
+   --data_path=${DATA_PATH} \
+   --image_set=${IMAGE_SET} \
+   --train_dir=${TRAIN_DIR} \
+   --net=${NET} \
+   --summary_step=100 \
+   --checkpoint_step=500 \
+   --gpu=${GPU}
+else
+  python ./src/train.py \
+   --dataset=${DATASET} \
+   --pretrained_model_path=${WEIGHT} \
+   --data_path=${DATA_PATH} \
+   --image_set=${IMAGE_SET} \
+   --train_dir=${TRAIN_DIR} \
+   --net=${NET} \
+   --summary_step=100 \
+   --checkpoint_step=500 \
+   --gpu=${GPU}
+fi

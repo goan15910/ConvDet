@@ -18,12 +18,12 @@ val_idx = sorted(idx[len(idx)/2:])
 
 with open(train_file, 'w') as f:
   for i in train_idx:
-    f.write('{}\n'.format(i))
+    f.write(str(i) + '\n')
 f.close()
 
 with open(val_file, 'w') as f:
   for i in val_idx:
-    f.write('{}\n'.format(i))
+    f.write(str(i) + '\n')
 f.close()
 
 print 'Trainining set is saved to ' + train_file

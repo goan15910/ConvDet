@@ -17,26 +17,26 @@ from six.moves import xrange
 import tensorflow as tf
 
 from config import *
-from dataset import pascal_voc, kitti
+from dataset import pascal_voc, kitti, vid
 from utils.util import sparse_to_dense, bgr_to_rgb, bbox_transform
 from nets import *
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('dataset', 'KITTI',
-                           """Currently only support KITTI dataset.""")
+tf.app.flags.DEFINE_string('dataset', 'PASCAL_VOC',
+                           """KITTI / PASCAL_VOC / VID""")
 tf.app.flags.DEFINE_string('data_path', '', """Root directory of data""")
 tf.app.flags.DEFINE_string('image_set', 'train',
                            """ Can be train, trainval, val, or test""")
 tf.app.flags.DEFINE_string('year', '2007',
                             """VOC challenge year. 2007 or 2012"""
                             """Only used for Pascal VOC dataset""")
-tf.app.flags.DEFINE_string('train_dir', '/tmp/bichen/logs/squeezeDet/train',
+tf.app.flags.DEFINE_string('train_dir', '/tmp3/jeff/squeezeDet/experiments/train',
                             """Directory where to write event logs """
                             """and checkpoint.""")
 tf.app.flags.DEFINE_integer('max_steps', 1000000,
                             """Maximum number of batches to run.""")
-tf.app.flags.DEFINE_string('net', 'squeezeDet',
+tf.app.flags.DEFINE_string('net', 'vgg16',
                            """Neural net architecture. """)
 tf.app.flags.DEFINE_string('pretrained_model_path', '',
                            """Path to the pretrained model.""")
@@ -100,32 +100,29 @@ def _viz_prediction_result(model, images, bboxes, labels, batch_det_bbox,
 
 def train():
   """Train SqueezeDet model"""
-  assert FLAGS.dataset == 'KITTI', \
-      'Currently only support KITTI dataset'
+  assert FLAGS.dataset in ['KITTI', 'PASCAL_VOC', 'VID'], \
+      'Either KITTI / PASCAL_VOC / VID'
+  if FLAGS.dataset == 'KITTI':
+    mc = kitti_vgg16_config()
+    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+    imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
+  elif FLAGS.dataset == 'PASCAL_VOC':
+    mc = pascal_voc_vgg16_config()
+    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+    imdb = pascal_voc(FLAGS.image_set, FLAGS.year, FLAGS.data_path, mc)
+  elif FLAGS.dataset == 'VID':
+    mc = vid_vgg16_config()
+    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+    imdb = vid(FLAGS.image_set, FLAGS.data_path, mc)
 
   with tf.Graph().as_default():
 
-    assert FLAGS.net == 'vgg16' or FLAGS.net == 'resnet50' \
-        or FLAGS.net == 'squeezeDet' or FLAGS.net == 'squeezeDet+', \
+    assert FLAGS.net in ['vgg16', 'vgg16_v2'], \
         'Selected neural net architecture not supported: {}'.format(FLAGS.net)
     if FLAGS.net == 'vgg16':
-      mc = kitti_vgg16_config()
-      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
       model = VGG16ConvDet(mc, FLAGS.gpu)
-    elif FLAGS.net == 'resnet50':
-      mc = kitti_res50_config()
-      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
-      model = ResNet50ConvDet(mc, FLAGS.gpu)
-    elif FLAGS.net == 'squeezeDet':
-      mc = kitti_squeezeDet_config()
-      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
-      model = SqueezeDet(mc, FLAGS.gpu)
-    elif FLAGS.net == 'squeezeDet+':
-      mc = kitti_squeezeDetPlus_config()
-      mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
-      model = SqueezeDetPlus(mc, FLAGS.gpu)
-
-    imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
+    elif FLAGS.net == 'vgg16_v2':
+      model = VGG16ConvDetV2(mc, FLAGS.gpu)
 
     # save model size, flops, activations by layers
     with open(os.path.join(FLAGS.train_dir, 'model_metrics.txt'), 'w') as f:

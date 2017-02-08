@@ -17,14 +17,14 @@ from six.moves import xrange
 import tensorflow as tf
 
 from config import *
-from dataset import pascal_voc, kitti
+from dataset import pascal_voc, kitti, vid
 from utils.util import bbox_transform, Timer
 from nets import *
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('dataset', 'KITTI',
-                           """Currently support PASCAL_VOC or KITTI dataset.""")
+tf.app.flags.DEFINE_string('dataset', 'PASCAL_VOC',
+                           """PASCAL_VOC / KITTI""")
 tf.app.flags.DEFINE_string('data_path', '', """Root directory of data""")
 tf.app.flags.DEFINE_string('image_set', 'test',
                            """Only used for VOC data."""
@@ -32,9 +32,9 @@ tf.app.flags.DEFINE_string('image_set', 'test',
 tf.app.flags.DEFINE_string('year', '2007',
                             """VOC challenge year. 2007 or 2012"""
                             """Only used for VOC data""")
-tf.app.flags.DEFINE_string('eval_dir', '/tmp/bichen/logs/squeezeDet/eval',
+tf.app.flags.DEFINE_string('eval_dir', '/tmp3/jeff/squeezeDet/experiments/eval_val',
                             """Directory where to write event logs """)
-tf.app.flags.DEFINE_string('checkpoint_path', '/tmp/bichen/logs/squeezeDet/train',
+tf.app.flags.DEFINE_string('checkpoint_path', '/tmp3/jeff/squeezeDet/experiments/vgg16/train/PASCAL_VOC',
                             """Path to the training checkpoint.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 1,
                              """How often to check if new cpt is saved.""")
@@ -145,36 +145,33 @@ def eval_once(saver, ckpt_path, summary_writer, imdb, model):
 
 def evaluate():
   """Evaluate."""
-  assert FLAGS.dataset == 'KITTI', \
-      'Currently only supports KITTI dataset'
+  assert FLAGS.dataset in ['KITTI', 'PASCAL_VOC', 'VID'], \
+      'Either KITTI / PASCAL_VOC / VID'
 
   with tf.Graph().as_default() as g:
 
-    assert FLAGS.net == 'vgg16' or FLAGS.net == 'resnet50' \
-        or FLAGS.net == 'squeezeDet' or FLAGS.net == 'squeezeDet+', \
-        'Selected neural net architecture not supported: {}'.format(FLAGS.net)
-    if FLAGS.net == 'vgg16':
+    if FLAGS.dataset == 'KITTI':
       mc = kitti_vgg16_config()
       mc.BATCH_SIZE = 1 # TODO(bichen): allow batch size > 1
       mc.LOAD_PRETRAINED_MODEL = False
-      model = VGG16ConvDet(mc, FLAGS.gpu)
-    elif FLAGS.net == 'resnet50':
-      mc = kitti_res50_config()
+      imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
+    elif FLAGS.dataset == 'PASCAL_VOC':
+      mc = pascal_voc_vgg16_config()
       mc.BATCH_SIZE = 1 # TODO(bichen): allow batch size > 1
       mc.LOAD_PRETRAINED_MODEL = False
-      model = ResNet50ConvDet(mc, FLAGS.gpu)
-    elif FLAGS.net == 'squeezeDet':
-      mc = kitti_squeezeDet_config()
+      imdb = pascal_voc(FLAGS.image_set, FLAGS.year, FLAGS.data_path, mc)
+    elif FLAGS.dataset == 'VID':
+      mc = vid_vgg16_config()
       mc.BATCH_SIZE = 1 # TODO(bichen): allow batch size > 1
       mc.LOAD_PRETRAINED_MODEL = False
-      model = SqueezeDet(mc, FLAGS.gpu)
-    elif FLAGS.net == 'squeezeDet+':
-      mc = kitti_squeezeDetPlus_config()
-      mc.BATCH_SIZE = 1 # TODO(bichen): allow batch size > 1
-      mc.LOAD_PRETRAINED_MODEL = False
-      model = SqueezeDetPlus(mc, FLAGS.gpu)
+      imdb = vid(FLAGS.image_set, FLAGS.data_path, mc)
 
-    imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
+    assert FLAGS.net in ['vgg16', 'vgg16_v2'], \
+        'Selected neural net architecture not supported: {}'.format(FLAGS.net)
+    if FLAGS.net == 'vgg16':
+      model = VGG16ConvDet(mc, FLAGS.gpu)
+    if FLAGS.net == 'vgg16_v2':
+      model = VGG16ConvDetV2(mc, FLAGS.gpu)
 
     saver = tf.train.Saver(model.model_params)
 

@@ -259,9 +259,14 @@ class ModelSkeleton:
 
       self.det_probs = tf.reduce_max(probs, 2, name='score')
       self.det_class = tf.argmax(probs, 2, name='class_idx')
+  
+  def _add_yolo_loss_graph(self):
+    """Define the YOLO loss operation."""
+    #TODO(jeff): add YOLO loss
+    raise NotImplementedError
 
-  def _add_loss_graph(self):
-    """Define the loss operation."""
+  def _add_sqt_loss_graph(self):
+    """Define the SqueezeDet loss operation."""
     mc = self.mc
 
     with tf.variable_scope('class_regression') as scope:
@@ -471,7 +476,8 @@ class ModelSkeleton:
     if mc.LOAD_PRETRAINED_MODEL:
       cw = self.caffemodel_weight
       if layer_name in cw:
-        kernel_val = np.transpose(cw[layer_name][0], [2,3,1,0])
+        # kernel_val = np.transpose(cw[layer_name][0], [2,3,1,0])
+        kernel_val = cw[layer_name][0]
         bias_val = cw[layer_name][1]
         # check the shape
         if (kernel_val.shape == 
