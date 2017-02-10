@@ -166,12 +166,14 @@ def evaluate():
       mc.LOAD_PRETRAINED_MODEL = False
       imdb = vid(FLAGS.image_set, FLAGS.data_path, mc)
 
-    assert FLAGS.net in ['vgg16', 'vgg16_v2'], \
+    assert FLAGS.net in ['vgg16', 'vgg16_v2', 'vgg16_v3'], \
         'Selected neural net architecture not supported: {}'.format(FLAGS.net)
     if FLAGS.net == 'vgg16':
       model = VGG16ConvDet(mc, FLAGS.gpu)
     if FLAGS.net == 'vgg16_v2':
       model = VGG16ConvDetV2(mc, FLAGS.gpu)
+    if FLAGS.net == 'vgg16_v3':
+      model = VGG16ConvDetV3(mc, FLAGS.gpu)
 
     saver = tf.train.Saver(model.model_params)
 

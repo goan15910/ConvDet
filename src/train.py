@@ -100,29 +100,30 @@ def _viz_prediction_result(model, images, bboxes, labels, batch_det_bbox,
 
 def train():
   """Train SqueezeDet model"""
+  mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+
   assert FLAGS.dataset in ['KITTI', 'PASCAL_VOC', 'VID'], \
       'Either KITTI / PASCAL_VOC / VID'
   if FLAGS.dataset == 'KITTI':
     mc = kitti_vgg16_config()
-    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'PASCAL_VOC':
     mc = pascal_voc_vgg16_config()
-    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     imdb = pascal_voc(FLAGS.image_set, FLAGS.year, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'VID':
     mc = vid_vgg16_config()
-    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     imdb = vid(FLAGS.image_set, FLAGS.data_path, mc)
 
   with tf.Graph().as_default():
 
-    assert FLAGS.net in ['vgg16', 'vgg16_v2'], \
+    assert FLAGS.net in ['vgg16', 'vgg16_v2', 'vgg16_v3'], \
         'Selected neural net architecture not supported: {}'.format(FLAGS.net)
     if FLAGS.net == 'vgg16':
       model = VGG16ConvDet(mc, FLAGS.gpu)
     elif FLAGS.net == 'vgg16_v2':
       model = VGG16ConvDetV2(mc, FLAGS.gpu)
+    elif FLAGS.net == 'vgg16_v3':
+      model = VGG16ConvDetV3(mc, FLAGS.gpu)
 
     # save model size, flops, activations by layers
     with open(os.path.join(FLAGS.train_dir, 'model_metrics.txt'), 'w') as f:

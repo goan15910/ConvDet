@@ -8,6 +8,7 @@ DATASET=$2
 
 #NET=vgg16
 NET=vgg16_v2
+#NET=vgg16_v3
 
 case $DATASET in
   PASCAL_VOC)
