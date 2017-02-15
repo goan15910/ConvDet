@@ -100,18 +100,19 @@ def _viz_prediction_result(model, images, bboxes, labels, batch_det_bbox,
 
 def train():
   """Train SqueezeDet model"""
-  mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
-
   assert FLAGS.dataset in ['KITTI', 'PASCAL_VOC', 'VID'], \
       'Either KITTI / PASCAL_VOC / VID'
   if FLAGS.dataset == 'KITTI':
     mc = kitti_vgg16_config()
+    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'PASCAL_VOC':
     mc = pascal_voc_vgg16_config()
+    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     imdb = pascal_voc(FLAGS.image_set, FLAGS.year, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'VID':
     mc = vid_vgg16_config()
+    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     imdb = vid(FLAGS.image_set, FLAGS.data_path, mc)
 
   with tf.Graph().as_default():

@@ -95,8 +95,8 @@ class VGG16ConvDetV3(ModelSkeleton):
           'conv6_2', conv6_1, filters=1024, size=3, stride=1, bn=self.BN)
 
     with tf.variable_scope('conv7') as scope:
-      reorg4_3 = self.reorg('reorg4_3', conv4_3, stride=2)
-      concat7 = self.concat('concat7', conv6_2, reorg4_3)
+      reorg4_3 = self._reorg_layer('reorg4_3', conv4_3, stride=2)
+      concat7 = self._concat_layer('concat7', conv6_2, reorg4_3)
       conv7_1 = self._conv_layer(
           'conv7_1', concat7, filters=1024, size=3, stride=1, bn=self.BN)
 

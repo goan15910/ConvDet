@@ -523,10 +523,14 @@ class ModelSkeleton:
       conv = tf.nn.conv2d(
           inputs, kernel, [1, stride, stride, 1], padding=padding,
           name='convolution')
-      conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
   
       # TODO(jeff): Add BN
       if bn:
+        mean_val   = tf.constant_initializer(0.0)
+        var_val    = tf.constant_initializer(1.0)
+        gamma_val  = tf.constant_initializer(1.0)
+        beta_val   = tf.constant_initializer(0.0)
+
         gamma = _variable_on_device('gamma', [filters], gamma_val,
                                     trainable=(not freeze))
         beta  = _variable_on_device('beta', [filters], beta_val,
@@ -538,6 +542,8 @@ class ModelSkeleton:
         conv = tf.nn.batch_normalization(
             conv, mean=mean, variance=var, offset=beta, scale=gamma,
             variance_epsilon=mc.BATCH_NORM_EPSILON, name='batch_norm')
+
+      conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
 
       if relu:
         out = tf.nn.relu(conv_bias, 'relu')
@@ -699,12 +705,14 @@ class ModelSkeleton:
       inputs1: tensor1 with shape (N, W, B, C1)
       inputs2: tensor2 with shape (N, W, B, C2)
     Returns:
-      out: tensor with shape (N, W, B, C1+C2)
+      tensor with shape (N, W, B, C1+C2)
     """
     with tf.variable_scope(layer_name) as scope:
-      assert inputs1.shape[:-1] == inputs2.shape[:-1], \
-          'Cannot concat unmatch tensor shapes ({}, {}, {}, {}), ({}, {}, {}, {})'.format(*(inputs1.shape + inputs2.shape))
-      return tf.concat_v2([inputs1, inputs2], 3, name='concat')
+      shape1 = inputs1.get_shape().as_list()
+      shape2 = inputs2.get_shape().as_list()
+      assert shape1[:-1] == shape2[:-1], \
+          'Cannot concat unmatch tensor shapes ({}, {}, {}, {}), ({}, {}, {}, {})'.format(*(shape1 + shape2))
+      return tf.concat(3, [inputs1, inputs2], name='concat')
 
   def _reorg_layer(self, layer_name, inputs, stride):
     """Reorganization layer
@@ -717,10 +725,13 @@ class ModelSkeleton:
       tensor with shape (N, W/stride, H/stride, C*stride*stride)
     """
     with tf.variable_scope(layer_name) as scope:
-      n, w, h, c = inputs.shape
-      assert (w % stride == 0) and (), \
-          '({0}, {1}) are not divisible by stride {3}'.format(w, h, stride)
-      return tf.reshape(inputs, [n, -1, -1, c*stride*stride], name='reorg')
+      n, w, h, c = inputs.get_shape().as_list()
+      assert (w % stride == 0) and (h % stride == 0), \
+          '({}, {}) are not divisible by stride {}'.format(w, h, stride)
+      new_w = int(w / stride)
+      new_h = int(h / stride)
+      new_c = int(c*stride*stride)
+      return tf.reshape(inputs, [n, new_w, new_h, new_c], name='reorg')
 
   def filter_prediction(self, boxes, probs, cls_idx):
     """Filter bounding box predictions with probability threshold and
