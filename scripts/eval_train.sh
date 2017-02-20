@@ -7,15 +7,15 @@ GPU=$1
 DATASET=$2
 
 #NET=vgg16
-NET=vgg16_v2
-#NET=vgg16_v3
+#NET=vgg16_v2
+NET=vgg16_v3
 
 case $DATASET in
   PASCAL_VOC)
     echo "Use PASCAL_VOC dataset"
     DATA_PATH=/tmp3/jeff/VOCdevkit2007
     CKPT_PATH=./experiments/vgg16/train/PASCAL_VOC
-    IMAGE_SET=train
+    IMAGE_SET=trainval
     ;;
   VID)
     echo "Use VID dataset"

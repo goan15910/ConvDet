@@ -7,8 +7,8 @@ GPU=$1
 DATASET=$2
 
 #NET=vgg16
-NET=vgg16_v2
-#NET=vgg16_v3
+#NET=vgg16_v2
+NET=vgg16_v3
 
 case $DATASET in
   PASCAL_VOC)
@@ -26,7 +26,7 @@ case $DATASET in
     echo "Use KITTI dataset"
     DATA_PATH=data/KITTI
     CKPT_PATH=./experiments/vgg16/train/KITTI
-    IMAGE_SET=train
+    IMAGE_SET=val
     ;;
   *)
     echo "No dataset given"
