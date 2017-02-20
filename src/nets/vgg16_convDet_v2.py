@@ -86,10 +86,12 @@ class VGG16ConvDetV2(ModelSkeleton):
           'conv5_2', conv5_1, filters=512, size=3, stride=1)
       conv5_3 = self._conv_layer(
           'conv5_3', conv5_2, filters=512, size=3, stride=1)
+      pool5 = self._pooling_layer(
+          'pool5', conv5_3, size=2, stride=2)
 
     with tf.variable_scope('conv6') as scope:
       conv6_1 = self._conv_layer(
-          'conv6_1', conv5_3, filters=1024, size=3, stride=1)
+          'conv6_1', pool5, filters=1024, size=3, stride=1)
       conv6_2 = self._conv_layer(
           'conv6_2', conv6_1, filters=1024, size=3, stride=1)
 

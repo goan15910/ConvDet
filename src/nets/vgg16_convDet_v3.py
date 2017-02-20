@@ -87,20 +87,26 @@ class VGG16ConvDetV3(ModelSkeleton):
           'conv5_2', conv5_1, filters=512, size=3, stride=1, bn=self.BN)
       conv5_3 = self._conv_layer(
           'conv5_3', conv5_2, filters=512, size=3, stride=1, bn=self.BN)
+      pool5 = self._pooling_layer(
+          'pool5', conv5_3, size=2, stride=2)
 
     with tf.variable_scope('conv6') as scope:
       conv6_1 = self._conv_layer(
-          'conv6_1', conv5_3, filters=1024, size=3, stride=1, bn=self.BN)
+          'conv6_1', pool5, filters=1024, size=3, stride=1, bn=self.BN)
       conv6_2 = self._conv_layer(
-          'conv6_2', conv6_1, filters=1024, size=3, stride=1, bn=self.BN)
+          'conv6_2', conv6_1, filters=512, size=1, stride=1, bn=self.BN)
+      conv6_3 = self._conv_layer(
+          'conv6_3', conv6_2, filters=1024, size=3, stride=1, bn=self.BN)
 
     with tf.variable_scope('conv7') as scope:
-      reorg4_3 = self._reorg_layer('reorg4_3', conv4_3, stride=2)
-      concat7 = self._concat_layer('concat7', conv6_2, reorg4_3)
+      reorg4_3 = self._reorg_layer('reorg4_3', pool4, stride=2)
+      concat7 = self._concat_layer('concat7', conv6_3, reorg4_3)
       conv7_1 = self._conv_layer(
-          'conv7_1', concat7, filters=1024, size=3, stride=1, bn=self.BN)
+          'conv7_1', concat7, filters=1024, size=1, stride=1, bn=self.BN)
+      conv7_2 = self._conv_layer(
+          'conv7_2', conv7_1, filters=1024, size=3, stride=1, bn=self.BN)
 
     num_output = mc.ANCHOR_PER_GRID * (mc.CLASSES + 1 + 4)
     self.preds = self._conv_layer(
-        'conv8', conv7_1, filters=num_output, size=3, stride=1,
+        'conv8', conv7_2, filters=num_output, size=3, stride=1,
         padding='SAME', xavier=False, relu=False, stddev=0.0001)
