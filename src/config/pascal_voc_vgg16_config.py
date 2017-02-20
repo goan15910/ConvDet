@@ -21,14 +21,14 @@ def pascal_voc_vgg16_config():
 
   mc.WEIGHT_DECAY          = 0.0001
   mc.LEARNING_RATE         = 1e-3
-  mc.DECAY_STEPS           = 30000
+  mc.DECAY_STEPS           = 2e4
   mc.MAX_GRAD_NORM         = 1.0
   mc.MOMENTUM              = 0.9
   mc.LR_DECAY_FACTOR       = 0.1
 
   mc.LOSS_COEF_BBOX        = 5.0
-  mc.LOSS_COEF_CONF_POS    = 37.5
-  mc.LOSS_COEF_CONF_NEG    = 50.0
+  mc.LOSS_COEF_CONF_POS    = 75.0
+  mc.LOSS_COEF_CONF_NEG    = 100.0
   mc.LOSS_COEF_CLASS       = 1.0
 
   mc.PLOT_PROB_THRESH      = 0.6

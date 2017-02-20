@@ -23,25 +23,25 @@ This repository contains a tensorflow implementation of SqueezeDet, a convolutio
 - Clone the SqueezeDet repository:
 
   ```Shell
-  git clone https://github.com/BichenWuUCB/squeezeDet.git
+  git clone https://github.com/goan15910/ConvDet.git
   ```
-  Let's call the top level directory of SqueezeDet as `$SQDT_ROOT`. 
+  Let's call the top level directory of ConvDet as `$CD_ROOT`. 
 
 ## Demo:
-- Download SqueezeDet model parameters from [here](https://www.dropbox.com/s/a6t3er8f03gdl4z/model_checkpoints.tgz?dl=0), untar it, and put it under `$SQDT_ROOT/data/` If you are using command line, type:
+- Download SqueezeDet model parameters from [here](https://www.dropbox.com/s/a6t3er8f03gdl4z/model_checkpoints.tgz?dl=0), untar it, and put it under `$CD_ROOT/data/` If you are using command line, type:
 
   ```Shell
-  cd $SQDT_ROOT/data/
+  cd $CD_ROOT/data/
   wget https://www.dropbox.com/s/a6t3er8f03gdl4z/model_checkpoints.tgz
   tar -xzvf model_checkpoints.tgz
   rm model_checkpoints.tgz
   ```
 
 
-- Now we can run the demo. To detect the sample image `$SQDT_ROOT/data/sample.png`,
+- Now we can run the demo. To detect the sample image `$CD_ROOT/data/sample.png`,
 
   ```Shell
-  cd $SQDT_ROOT/
+  cd $CD_ROOT/
   python ./src/demo.py
   ```
   If the installation is correct, the detector should generate this image: ![alt text](https://github.com/BichenWuUCB/squeezeDet/blob/master/README/out_sample.png)
@@ -51,12 +51,12 @@ This repository contains a tensorflow implementation of SqueezeDet, a convolutio
 - SqueezeDet is a real-time object detector, which can be used to detect videos. The video demo will be released later.
 
 ## Training/Validation:
-- Download KITTI object detection dataset: [images](http://www.cvlibs.net/download.php?file=data_object_image_2.zip) and [labels](http://www.cvlibs.net/download.php?file=data_object_label_2.zip). Put them under `$SQDT_ROOT/data/KITTI/`. Unzip them, then you will get two directories:  `$SQDT_ROOT/data/KITTI/training/` and `$SQDT_ROOT/data/KITTI/testing/`. 
+- Download KITTI object detection dataset: [images](http://www.cvlibs.net/download.php?file=data_object_image_2.zip) and [labels](http://www.cvlibs.net/download.php?file=data_object_label_2.zip). Put them under `$CD_ROOT/data/KITTI/`. Unzip them, then you will get two directories:  `$CD_ROOT/data/KITTI/training/` and `$CD_ROOT/data/KITTI/testing/`. 
 
 - Now we need to split the training data into a training set and a vlidation set. 
 
   ```Shell
-  cd $SQDT_ROOT/data/KITTI/
+  cd $CD_ROOT/data/KITTI/
   mkdir ImageSets
   cd ./ImageSets
   ls ../training/image_2/ | grep ".png" | sed s/.png// > trainval.txt
@@ -64,16 +64,16 @@ This repository contains a tensorflow implementation of SqueezeDet, a convolutio
   `trainval.txt` contains indices to all the images in the training data. In our experiments, we randomly split half of indices in `trainval.txt` into `train.txt` to form a training set and rest of them into `val.txt` to form a validation set. For your convenience, we provide a script to split the train-val set automatically. Simply run
   
     ```Shell
-  cd $SQDT_ROOT/data/
+  cd $CD_ROOT/data/
   python random_split_train_val.py
   ```
   
-  then you should get the `train.txt` and `val.txt` under `$SQDT_ROOT/data/KITTI/ImageSets`. 
+  then you should get the `train.txt` and `val.txt` under `$CD_ROOT/data/KITTI/ImageSets`. 
 
-  When above two steps are finished, the structure of `$SQDT_ROOT/data/KITTI/` should at least contain:
+  When above two steps are finished, the structure of `$CD_ROOT/data/KITTI/` should at least contain:
 
   ```Shell
-  $SQDT_ROOT/data/KITTI/
+  $CD_ROOT/data/KITTI/
                     |->training/
                     |     |-> image_2/00****.png
                     |     L-> label_2/00****.txt
@@ -87,7 +87,7 @@ This repository contains a tensorflow implementation of SqueezeDet, a convolutio
 
 - Next, download the CNN model pretrained for ImageNet classification:
   ```Shell
-  cd $SQDT_ROOT/data/
+  cd $CD_ROOT/data/
   # SqueezeNet
   wget https://www.dropbox.com/s/fzvtkc42hu3xw47/SqueezeNet.tgz
   tar -xzvf SqueezeNet.tgz
@@ -99,10 +99,10 @@ This repository contains a tensorflow implementation of SqueezeDet, a convolutio
   tar -xzvf VGG16.tgz
   ```
 
-- Now we can start training. Training script can be found in `$SQDT_ROOT/scripts/train.sh`, which contains commands to train 4 models: SqueezeDet, SqueezeDet+, VGG16+ConvDet, ResNet50+ConvDet. Un-comment the model you want to train, and then, type:
+- Now we can start training. Training script can be found in `$CD_ROOT/scripts/train.sh`, type:
 
   ```Shell
-  cd $SQDT_ROOT/
+  cd $CD_ROOT/
   ./scripts/train.sh
   ```
 
@@ -111,7 +111,7 @@ This repository contains a tensorflow implementation of SqueezeDet, a convolutio
 - At the same time, you can launch evaluation by 
 
   ```Shell
-  cd $SQDT_ROOT/
+  cd $CD_ROOT/
   ./scripts/eval_train.sh
   ./scripts/eval_val.sh
   ```
