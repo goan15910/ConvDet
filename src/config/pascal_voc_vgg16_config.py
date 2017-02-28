@@ -13,7 +13,7 @@ def pascal_voc_vgg16_config():
   mc.DEBUG_MODE            = False
   
   #mc.LOSS_TYPE = 'YOLO'
-  mc.LOSS_TYPE = 'SQT'
+  mc.DATA_AUG_TYPE = 'YOLO'
 
   mc.IMAGE_WIDTH           = 416
   mc.IMAGE_HEIGHT          = 416

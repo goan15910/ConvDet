@@ -5,6 +5,7 @@
 import numpy as np
 import time
 import tensorflow as tf
+import cv2
 
 def iou(box1, box2):
   """Compute the Intersection-Over-Union of two given boxes.
@@ -194,6 +195,76 @@ def bbox_transform_inv(bbox):
     out_box[3]  = height
 
   return out_box
+
+def recolor(im, a = .1):
+	t = [np.random.uniform()]
+	t += [np.random.uniform()]
+	t += [np.random.uniform()]
+	t = np.array(t) * 2. - 1.
+
+	# random amplify each channel
+	im = (im * (1 + t * a))
+	mx = 255. * (1 + a)
+	up = np.random.uniform() * 2 - 1
+	im = np.power((im/mx).astype(float), 1. + up * .5)
+	return np.array(im * 255., np.uint8)
+
+def scale_trans(im, gt_bbox, labels):
+    # Scale and translate
+    h, w, c = im.shape
+    scale = np.random.uniform() / 10. + 1.
+    max_offx = (scale-1.) * w
+    max_offy = (scale-1.) * h
+    offx = int(np.random.uniform() * max_offx)
+    offy = int(np.random.uniform() * max_offy)
+	
+    im = cv2.resize(im, (0,0), fx = scale, fy = scale)
+    im = im[offy : (offy + h), offx : (offx + w)]
+    gt_bbox[:, 0::2] = gt_bbox[:, 0::2] * scale
+    gt_bbox[:, 1::2] = gt_bbox[:, 1::2] * scale
+    gt_bbox[:, 0::2] = np.clip(gt_bbox[:, 0::2] - offx, 0, 5000)
+    gt_bbox[:, 1::2] = np.clip(gt_bbox[:, 1::2] - offy, 0, 5000)
+    valid_x = (gt_bbox[:, 0::2] > 0).all(axis=1)
+    valid_y = (gt_bbox[:, 1::2] > 0).all(axis=1)
+    valid_idx = valid_x * valid_y
+    return im, gt_bbox[valid_idx], labels[valid_idx]
+
+def drift_dist(im, gt_bbox, mc):
+    assert mc.DRIFT_X >= 0 and mc.DRIFT_Y > 0, \
+        'mc.DRIFT_X and mc.DRIFT_Y must be >= 0'
+
+    if mc.DRIFT_X > 0 or mc.DRIFT_Y > 0:
+      # Ensures that gt boundibg box is not cutted out of the image
+      max_drift_x = min(gt_bbox[:, 0] - gt_bbox[:, 2]/2.0+1)
+      max_drift_y = min(gt_bbox[:, 1] - gt_bbox[:, 3]/2.0+1)
+      assert max_drift_x >= 0 and max_drift_y >= 0, 'bbox out of image'
+
+      dy = np.random.randint(-mc.DRIFT_Y, min(mc.DRIFT_Y+1, max_drift_y))
+      dx = np.random.randint(-mc.DRIFT_X, min(mc.DRIFT_X+1, max_drift_x))
+
+      # shift bbox
+      gt_bbox[:, 0] = gt_bbox[:, 0] - dx
+      gt_bbox[:, 1] = gt_bbox[:, 1] - dy
+
+      # distort image
+      orig_h -= dy
+      orig_w -= dx
+      orig_x, dist_x = max(dx, 0), max(-dx, 0)
+      orig_y, dist_y = max(dy, 0), max(-dy, 0)
+
+      distorted_im = np.zeros(
+          (int(orig_h), int(orig_w), 3)).astype(np.float32)
+      distorted_im[dist_y:, dist_x:, :] = im[orig_y:, orig_x:, :]
+      im = distorted_im
+
+    return im, gt_bbox
+
+def rand_flip(im, gt_bbox):
+    # Flip image with 50% probability
+    if np.random.randint(2) > 0.5:
+      im = im[:, ::-1, :]
+      gt_bbox[:, 0] = orig_w - 1 - gt_bbox[:, 0]
+    return im, gt_bbox
 
 class Timer(object):
   def __init__(self):

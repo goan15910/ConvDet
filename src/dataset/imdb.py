@@ -9,7 +9,7 @@ import shutil
 from PIL import Image, ImageFont, ImageDraw
 import cv2
 import numpy as np
-from utils.util import iou, batch_iou
+from utils.util import iou, batch_iou, drift_dist, recolor, scale_trans
 
 class imdb(object):
   """Image database."""
@@ -145,41 +145,19 @@ class imdb(object):
       orig_h, orig_w, _ = [float(v) for v in im.shape]
 
       # load annotations
-      label_per_batch.append([b[4] for b in self._rois[idx][:]])
+      label_this_batch = np.array([b[4] for b in self._rois[idx][:]])
       gt_bbox = np.array([[b[0], b[1], b[2], b[3]] for b in self._rois[idx][:]])
 
       if mc.DATA_AUGMENTATION:
-        assert mc.DRIFT_X >= 0 and mc.DRIFT_Y > 0, \
-            'mc.DRIFT_X and mc.DRIFT_Y must be >= 0'
+        assert mc.DATA_AUG_TYPE in ['SQT', 'YOLO'], \
+            'Invalid augmentation type: {}'.format(mc.DATA_AUG_TYPE)
+        if mc.DATA_AUG_TYPE == 'SQT':
+          im, gt_bbox = drift_dist(im, gt_bbox, mc)
+        elif mc.DATA_AUG_TYPE == 'YOLO':
+          im, gt_bbox, label_this_batch = scale_trans(im, gt_bbox, label_this_batch)
+          im = recolor(im)
 
-        if mc.DRIFT_X > 0 or mc.DRIFT_Y > 0:
-          # Ensures that gt boundibg box is not cutted out of the image
-          max_drift_x = min(gt_bbox[:, 0] - gt_bbox[:, 2]/2.0+1)
-          max_drift_y = min(gt_bbox[:, 1] - gt_bbox[:, 3]/2.0+1)
-          assert max_drift_x >= 0 and max_drift_y >= 0, 'bbox out of image'
-
-          dy = np.random.randint(-mc.DRIFT_Y, min(mc.DRIFT_Y+1, max_drift_y))
-          dx = np.random.randint(-mc.DRIFT_X, min(mc.DRIFT_X+1, max_drift_x))
-
-          # shift bbox
-          gt_bbox[:, 0] = gt_bbox[:, 0] - dx
-          gt_bbox[:, 1] = gt_bbox[:, 1] - dy
-
-          # distort image
-          orig_h -= dy
-          orig_w -= dx
-          orig_x, dist_x = max(dx, 0), max(-dx, 0)
-          orig_y, dist_y = max(dy, 0), max(-dy, 0)
-
-          distorted_im = np.zeros(
-              (int(orig_h), int(orig_w), 3)).astype(np.float32)
-          distorted_im[dist_y:, dist_x:, :] = im[orig_y:, orig_x:, :]
-          im = distorted_im
-
-        # Flip image with 50% probability
-        if np.random.randint(2) > 0.5:
-          im = im[:, ::-1, :]
-          gt_bbox[:, 0] = orig_w - 1 - gt_bbox[:, 0]
+      label_per_batch.append(label_this_batch.tolist())
 
       # scale image
       im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT))

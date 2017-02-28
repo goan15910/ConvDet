@@ -125,6 +125,9 @@ def base_model_config(dataset='PASCAL_VOC'):
 
   # Whether to do data augmentation
   cfg.DATA_AUGMENTATION = False
+  
+  # Data augmentation type (YOLO / SQT)
+  cfg.DATA_AUG_TYPE = 'SQT'
 
   # The range to randomly shift the image widht
   cfg.DRIFT_X = 0
