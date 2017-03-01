@@ -140,8 +140,7 @@ class imdb(object):
 
     for idx in batch_idx:
       # load the image
-      im = cv2.imread(self._image_path_at(idx)).astype(np.float32, copy=False)
-      im -= mc.BGR_MEANS
+      im = cv2.imread(self._image_path_at(idx))
       orig_h, orig_w, _ = [float(v) for v in im.shape]
 
       # load annotations
@@ -156,6 +155,10 @@ class imdb(object):
         elif mc.DATA_AUG_TYPE == 'YOLO':
           im, gt_bbox, label_this_batch = scale_trans(im, gt_bbox, label_this_batch)
           im = recolor(im)
+
+      # Remove BGR bias
+      im = im.astype(np.float32, copy=False)
+      #im -= mc.BGR_MEANS
 
       label_per_batch.append(label_this_batch.tolist())
 

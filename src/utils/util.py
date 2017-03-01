@@ -203,10 +203,10 @@ def recolor(im, a = .1):
 	t = np.array(t) * 2. - 1.
 
 	# random amplify each channel
-	im = (im * (1 + t * a))
+	im = im.astype(float) * (1 + t * a)
 	mx = 255. * (1 + a)
 	up = np.random.uniform() * 2 - 1
-	im = np.power((im/mx).astype(float), 1. + up * .5)
+	im = np.power(im/mx, 1. + up * .5)
 	return np.array(im * 255., np.uint8)
 
 def scale_trans(im, gt_bbox, labels):
@@ -220,14 +220,18 @@ def scale_trans(im, gt_bbox, labels):
 	
     im = cv2.resize(im, (0,0), fx = scale, fy = scale)
     im = im[offy : (offy + h), offx : (offx + w)]
-    gt_bbox[:, 0::2] = gt_bbox[:, 0::2] * scale
-    gt_bbox[:, 1::2] = gt_bbox[:, 1::2] * scale
-    gt_bbox[:, 0::2] = np.clip(gt_bbox[:, 0::2] - offx, 0, 5000)
-    gt_bbox[:, 1::2] = np.clip(gt_bbox[:, 1::2] - offy, 0, 5000)
-    valid_x = (gt_bbox[:, 0::2] > 0).all(axis=1)
-    valid_y = (gt_bbox[:, 1::2] > 0).all(axis=1)
-    valid_idx = valid_x * valid_y
-    return im, gt_bbox[valid_idx], labels[valid_idx]
+    cvt_bbox = np.array(map(bbox_transform, gt_bbox))
+    cvt_bbox[:, 0::2] = cvt_bbox[:, 0::2] * scale
+    cvt_bbox[:, 1::2] = cvt_bbox[:, 1::2] * scale
+    valid_xmin = (cvt_bbox[:, 0::2] <= 0.5*w).all(axis=1)
+    valid_ymin = (cvt_bbox[:, 1::2] <= 0.5*h).all(axis=1)
+    valid_xmax = (cvt_bbox[:, 0::2] >= 0.5*w).all(axis=1)
+    valid_ymax = (cvt_bbox[:, 1::2] >= 0.5*h).all(axis=1)
+    valid_idx = valid_xmin * valid_ymin * valid_xmax * valid_ymax
+    cvt_bbox[:, 0::2] = np.clip(cvt_bbox[:, 0::2] - offx, 0, w)
+    cvt_bbox[:, 1::2] = np.clip(cvt_bbox[:, 1::2] - offy, 0, h)
+    new_gt_bbox = np.array(map(bbox_transform_inv, cvt_bbox))
+    return im, new_gt_bbox[valid_idx], labels[valid_idx]
 
 def drift_dist(im, gt_bbox, mc):
     assert mc.DRIFT_X >= 0 and mc.DRIFT_Y > 0, \
