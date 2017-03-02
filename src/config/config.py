@@ -38,6 +38,12 @@ def base_model_config(dataset='PASCAL_VOC'):
   # type of the loss, either YOLO / SQT
   cfg.LOSS_TYPE = 'SQT'
 
+  # Freeze conv1_1 ~ conv2_2 or not
+  cfg.FRONT_ON = False
+
+  # Use batch normalization
+  cfg.BN = False
+
   # ROI pooling output width
   cfg.GRID_POOL_WIDTH = 7
 
@@ -80,6 +86,7 @@ def base_model_config(dataset='PASCAL_VOC'):
   # Pixel mean values (BGR order) as a (1, 1, 3) array. Below is the BGR mean
   # of VGG16
   cfg.BGR_MEANS = np.array([[[103.939, 116.779, 123.68]]])
+  cfg.SUB_BGR_MEANS = True
 
   # loss coefficient for confidence regression
   cfg.LOSS_COEF_CONF = 1.0

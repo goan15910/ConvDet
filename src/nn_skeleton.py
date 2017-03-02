@@ -325,7 +325,7 @@ class ModelSkeleton:
     _add_loss_summaries(self.loss)
 
     opt = tf.train.MomentumOptimizer(learning_rate=lr, momentum=mc.MOMENTUM)
-    grads_vars = opt.compute_gradients(self.loss, tf.trainable_variables())
+    grads_vars = opt.compute_gradients(self.loss, tf.trainable_variables(), aggregation_method=None)
 
     with tf.variable_scope('clip_gradient') as scope:
       for i, (grad, var) in enumerate(grads_vars):

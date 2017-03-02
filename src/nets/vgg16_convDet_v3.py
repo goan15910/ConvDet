@@ -22,7 +22,8 @@ class VGG16ConvDetV3(ModelSkeleton):
     with tf.device('/gpu:{}'.format(gpu_id)):
       ModelSkeleton.__init__(self, mc)
 
-      self.BN = True
+      self.front = mc.FRONT_ON
+      self.BN = mc.BN
       self._add_forward_graph()
       self._add_interpretation_graph()
       assert mc.LOSS_TYPE in ['SQT', 'YOLO'], \
@@ -46,17 +47,17 @@ class VGG16ConvDetV3(ModelSkeleton):
 
     with tf.variable_scope('conv1') as scope:
       conv1_1 = self._conv_layer(
-          'conv1_1', self.image_input, filters=64, size=3, stride=1, freeze=True)
+          'conv1_1', self.image_input, filters=64, size=3, stride=1, freeze=(not self.front), bn=(self.front and self.BN))
       conv1_2 = self._conv_layer(
-          'conv1_2', conv1_1, filters=64, size=3, stride=1, freeze=True)
+          'conv1_2', conv1_1, filters=64, size=3, stride=1, freeze=(not self.front), bn=(self.front and self.BN))
       pool1 = self._pooling_layer(
           'pool1', conv1_2, size=2, stride=2)
 
     with tf.variable_scope('conv2') as scope:
       conv2_1 = self._conv_layer(
-          'conv2_1', pool1, filters=128, size=3, stride=1, freeze=True)
+          'conv2_1', pool1, filters=128, size=3, stride=1, freeze=(not self.front), bn=(self.front and self.BN))
       conv2_2 = self._conv_layer(
-          'conv2_2', conv2_1, filters=128, size=3, stride=1, freeze=True)
+          'conv2_2', conv2_1, filters=128, size=3, stride=1, freeze=(not self.front), bn=(self.front and self.BN))
       pool2 = self._pooling_layer(
           'pool2', conv2_2, size=2, stride=2)
 

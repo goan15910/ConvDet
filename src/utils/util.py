@@ -233,7 +233,7 @@ def scale_trans(im, gt_bbox, labels):
     new_gt_bbox = np.array(map(bbox_transform_inv, cvt_bbox))
     return im, new_gt_bbox[valid_idx], labels[valid_idx]
 
-def drift_dist(im, gt_bbox, mc):
+def drift_dist(im, gt_bbox, mc, orig_h, orig_w):
     assert mc.DRIFT_X >= 0 and mc.DRIFT_Y > 0, \
         'mc.DRIFT_X and mc.DRIFT_Y must be >= 0'
 
