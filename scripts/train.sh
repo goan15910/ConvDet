@@ -15,17 +15,20 @@ case $DATASET in
   PASCAL_VOC)
     echo "Use PASCAL_VOC dataset"
     DATA_PATH=/tmp3/jeff/VOCdevkit2007
-    IMAGE_SET=trainval
+    TRAIN_SET=trainval
+    VAL_SET=test
     ;;
   VID)
     echo "Use VID dataset"
     DATA_PATH=/tmp3/jeff/vid/ILSVRC2015
-    IMAGE_SET=train
+    TRAIN_SET=train
+    VAL_SET=val
     ;;
   KITTI)
     echo "Use KITTI dataset"
     DATA_PATH=data/KITTI
-    IMAGE_SET=train
+    TRAIN_SET=train
+    VAL_SET=val
     ;;
   *)
     echo "No dataset given"
@@ -57,7 +60,8 @@ if [ $DEBUG = true ]; then
    --dataset=${DATASET} \
    --pretrained_model_path=${WEIGHT} \
    --data_path=${DATA_PATH} \
-   --image_set=${IMAGE_SET} \
+   --train_set=${TRAIN_SET} \
+   --val_set=${VAL_SET} \
    --train_dir=${TRAIN_DIR} \
    --net=${NET} \
    --summary_step=100 \
@@ -68,7 +72,8 @@ else
    --dataset=${DATASET} \
    --pretrained_model_path=${WEIGHT} \
    --data_path=${DATA_PATH} \
-   --image_set=${IMAGE_SET} \
+   --train_set=${TRAIN_SET} \
+   --val_set=${VAL_SET} \
    --train_dir=${TRAIN_DIR} \
    --net=${NET} \
    --summary_step=100 \

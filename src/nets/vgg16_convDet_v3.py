@@ -22,7 +22,6 @@ class VGG16ConvDetV3(ModelSkeleton):
     with tf.device('/gpu:{}'.format(gpu_id)):
       ModelSkeleton.__init__(self, mc)
 
-      self.front = mc.FRONT_ON
       self.BN = mc.BN
       self._add_forward_graph()
       self._add_interpretation_graph()
@@ -38,26 +37,25 @@ class VGG16ConvDetV3(ModelSkeleton):
   def _add_forward_graph(self):
     """Build the VGG-16 model."""
 
-    mc = self.mc
-    if mc.LOAD_PRETRAINED_MODEL:
-      assert tf.gfile.Exists(mc.PRETRAINED_MODEL_PATH), \
+    if self.mc.LOAD_PRETRAINED_MODEL:
+      assert tf.gfile.Exists(self.mc.PRETRAINED_MODEL_PATH), \
           'Cannot find pretrained model at the given path:' \
-          '  {}'.format(mc.PRETRAINED_MODEL_PATH)
-      self.caffemodel_weight = joblib.load(mc.PRETRAINED_MODEL_PATH)
+          '  {}'.format(self.mc.PRETRAINED_MODEL_PATH)
+      self.caffemodel_weight = joblib.load(self.mc.PRETRAINED_MODEL_PATH)
 
     with tf.variable_scope('conv1') as scope:
       conv1_1 = self._conv_layer(
-          'conv1_1', self.image_input, filters=64, size=3, stride=1, freeze=(not self.front), bn=(self.front and self.BN))
+          'conv1_1', self.image_input, filters=64, size=3, stride=1, freeze=True)
       conv1_2 = self._conv_layer(
-          'conv1_2', conv1_1, filters=64, size=3, stride=1, freeze=(not self.front), bn=(self.front and self.BN))
+          'conv1_2', conv1_1, filters=64, size=3, stride=1, freeze=True)
       pool1 = self._pooling_layer(
           'pool1', conv1_2, size=2, stride=2)
 
     with tf.variable_scope('conv2') as scope:
       conv2_1 = self._conv_layer(
-          'conv2_1', pool1, filters=128, size=3, stride=1, freeze=(not self.front), bn=(self.front and self.BN))
+          'conv2_1', pool1, filters=128, size=3, stride=1, freeze=True)
       conv2_2 = self._conv_layer(
-          'conv2_2', conv2_1, filters=128, size=3, stride=1, freeze=(not self.front), bn=(self.front and self.BN))
+          'conv2_2', conv2_1, filters=128, size=3, stride=1, freeze=True)
       pool2 = self._pooling_layer(
           'pool2', conv2_2, size=2, stride=2)
 
@@ -99,7 +97,7 @@ class VGG16ConvDetV3(ModelSkeleton):
       conv6_2 = self._conv_layer(
           'conv6_2', conv6_1, filters=1024, size=3, stride=1, bn=self.BN)
 
-    num_output = mc.ANCHOR_PER_GRID * (mc.CLASSES + 1 + 4)
+    num_output = self.mc.ANCHOR_PER_GRID * (self.mc.CLASSES + 1 + 4)
     self.preds = self._conv_layer(
         'conv7', conv6_2, filters=num_output, size=3, stride=1,
         padding='SAME', xavier=False, relu=False, stddev=0.0001)

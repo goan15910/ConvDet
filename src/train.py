@@ -26,8 +26,10 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('dataset', 'PASCAL_VOC',
                            """KITTI / PASCAL_VOC / VID""")
 tf.app.flags.DEFINE_string('data_path', '', """Root directory of data""")
-tf.app.flags.DEFINE_string('image_set', 'train',
-                           """ Can be train, trainval, val, or test""")
+tf.app.flags.DEFINE_string('train_set', 'trainval',
+                           """ Can be train, trainval""")
+tf.app.flags.DEFINE_string('val_set', 'val',
+                           """ Can be val""")
 tf.app.flags.DEFINE_string('year', '2007',
                             """VOC challenge year. 2007 or 2012"""
                             """Only used for Pascal VOC dataset""")
@@ -98,6 +100,37 @@ def _viz_prediction_result(model, images, bboxes, labels, batch_det_bbox,
         (0, 0, 255))
 
 
+def _process_batch(image_per_batch, label_per_batch, box_delta_per_batch, \
+                  aidx_per_batch, bbox_per_batch, DEBUG):
+    """Get the processed information of mini-batch"""
+    label_indices, bbox_indices, box_delta_values, mask_indices, box_values, \
+        = [], [], [], [], []
+    aidx_set = set()
+    num_discarded_labels = 0
+    num_labels = 0
+    for i in range(len(label_per_batch)): # batch_size
+      for j in range(len(label_per_batch[i])): # number of annotations
+        num_labels += 1
+        if (i, aidx_per_batch[i][j]) not in aidx_set:
+          aidx_set.add((i, aidx_per_batch[i][j]))
+          label_indices.append(
+              [i, aidx_per_batch[i][j], label_per_batch[i][j]])
+          mask_indices.append([i, aidx_per_batch[i][j]])
+          bbox_indices.extend(
+              [[i, aidx_per_batch[i][j], k] for k in range(4)])
+          box_delta_values.extend(box_delta_per_batch[i][j])
+          box_values.extend(bbox_per_batch[i][j])
+        else:
+          num_discarded_labels += 1
+
+    if DEBUG:
+      print ('Warning: Discarded {}/({}) labels that are assigned to the same'
+             'anchor'.format(num_discarded_labels, num_labels))
+
+    return (label_indices, bbox_indices, box_delta_values, mask_indices, \
+           box_values, num_discarded_labels, num_labels)
+
+
 def train():
   """Train SqueezeDet model"""
   assert FLAGS.dataset in ['KITTI', 'PASCAL_VOC', 'VID'], \
@@ -105,15 +138,18 @@ def train():
   if FLAGS.dataset == 'KITTI':
     mc = kitti_vgg16_config()
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
-    imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
+    train_imdb = kitti(FLAGS.train_set, FLAGS.data_path, mc)
+    val_imdb = kitti(FLAGS.val_set, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'PASCAL_VOC':
     mc = pascal_voc_vgg16_config()
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
-    imdb = pascal_voc(FLAGS.image_set, FLAGS.year, FLAGS.data_path, mc)
+    train_imdb = pascal_voc(FLAGS.train_set, FLAGS.year, FLAGS.data_path, mc)
+    val_imdb = pascal_voc(FLAGS.val_set, FLAGS.year, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'VID':
     mc = vid_vgg16_config()
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
-    imdb = vid(FLAGS.image_set, FLAGS.data_path, mc)
+    train_imdb = vid(FLAGS.train_set, FLAGS.data_path, mc)
+    val_imdb = vid(FLAGS.val_set, FLAGS.data_path, mc)
 
   with tf.Graph().as_default():
 
@@ -167,34 +203,16 @@ def train():
 
       # read batch input
       image_per_batch, label_per_batch, box_delta_per_batch, aidx_per_batch, \
-          bbox_per_batch = imdb.read_batch()
+          bbox_per_batch = train_imdb.read_batch()
 
       label_indices, bbox_indices, box_delta_values, mask_indices, box_values, \
-          = [], [], [], [], []
-      aidx_set = set()
-      num_discarded_labels = 0
-      num_labels = 0
-      for i in range(len(label_per_batch)): # batch_size
-        for j in range(len(label_per_batch[i])): # number of annotations
-          num_labels += 1
-          if (i, aidx_per_batch[i][j]) not in aidx_set:
-            aidx_set.add((i, aidx_per_batch[i][j]))
-            label_indices.append(
-                [i, aidx_per_batch[i][j], label_per_batch[i][j]])
-            mask_indices.append([i, aidx_per_batch[i][j]])
-            bbox_indices.extend(
-                [[i, aidx_per_batch[i][j], k] for k in range(4)])
-            box_delta_values.extend(box_delta_per_batch[i][j])
-            box_values.extend(bbox_per_batch[i][j])
-          else:
-            num_discarded_labels += 1
-
-      if mc.DEBUG_MODE:
-        print ('Warning: Discarded {}/({}) labels that are assigned to the same'
-               'anchor'.format(num_discarded_labels, num_labels))
+          num_discarded_labels, num_labels = _process_batch(image_per_batch, \
+                          label_per_batch, box_delta_per_batch, \
+                          aidx_per_batch, bbox_per_batch, mc.DEBUG_MODE)
 
       feed_dict = {
           model.image_input: image_per_batch,
+          model.is_training: True,
           model.keep_prob: mc.KEEP_PROB,
           model.input_mask: np.reshape(
               sparse_to_dense(

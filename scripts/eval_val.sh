@@ -20,6 +20,7 @@ case $DATASET in
   VID)
     echo "Use VID dataset"
     DATA_PATH=/tmp3/jeff/vid/ILSVRC2015
+    CKPT_PATH=./experiments/vgg16/train/VID
     IMAGE_SET=val
     ;;
   KITTI)

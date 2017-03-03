@@ -38,9 +38,6 @@ def base_model_config(dataset='PASCAL_VOC'):
   # type of the loss, either YOLO / SQT
   cfg.LOSS_TYPE = 'SQT'
 
-  # Freeze conv1_1 ~ conv2_2 or not
-  cfg.FRONT_ON = False
-
   # Use batch normalization
   cfg.BN = False
 

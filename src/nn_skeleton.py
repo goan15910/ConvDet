@@ -73,6 +73,7 @@ class ModelSkeleton:
   """Base class of NN detection models."""
   def __init__(self, mc):
     self.mc = mc
+    self.is_training = tf.placeholder(tf.bool, name='is_training')
 
     # image batch input
     self.image_input = tf.placeholder(
@@ -427,9 +428,10 @@ class ModelSkeleton:
       if conv_with_bias:
         conv = tf.nn.bias_add(conv, biases, name='bias_add')
 
-      conv = tf.nn.batch_normalization(
-          conv, mean=mean, variance=var, offset=beta, scale=gamma,
-          variance_epsilon=mc.BATCH_NORM_EPSILON, name='batch_norm')
+      #conv = tf.nn.batch_normalization(
+      #    conv, mean=mean, variance=var, offset=beta, scale=gamma,
+      #    variance_epsilon=mc.BATCH_NORM_EPSILON, name='batch_norm')
+      conv = self._batch_norm(conv, scope.name)
 
       self.model_size_counter.append(
           (conv_param_name, (1+size*size*int(channels))*filters)
@@ -525,25 +527,28 @@ class ModelSkeleton:
           name='convolution')
   
       # TODO(jeff): Add BN
-      if bn:
-        mean_val   = tf.constant_initializer(0.0)
-        var_val    = tf.constant_initializer(1.0)
-        gamma_val  = tf.constant_initializer(1.0)
-        beta_val   = tf.constant_initializer(0.0)
+      #if bn:
+      #  mean_val   = tf.constant_initializer(0.0)
+      #  var_val    = tf.constant_initializer(1.0)
+      #  gamma_val  = tf.constant_initializer(1.0)
+      #  beta_val   = tf.constant_initializer(0.0)
 
-        gamma = _variable_on_device('gamma', [filters], gamma_val,
-                                    trainable=(not freeze))
-        beta  = _variable_on_device('beta', [filters], beta_val,
-                                    trainable=(not freeze))
-        mean  = _variable_on_device('mean', [filters], mean_val, trainable=False)
-        var   = _variable_on_device('var', [filters], var_val, trainable=False)
-        self.model_params += [gamma, beta, mean, var]
+      #  gamma = _variable_on_device('gamma', [filters], gamma_val,
+      #                              trainable=(not freeze))
+      #  beta  = _variable_on_device('beta', [filters], beta_val,
+      #                              trainable=(not freeze))
+      #  mean  = _variable_on_device('mean', [filters], mean_val, trainable=False)
+      #  var   = _variable_on_device('var', [filters], var_val, trainable=False)
+      #  self.model_params += [gamma, beta, mean, var]
         
-        conv = tf.nn.batch_normalization(
-            conv, mean=mean, variance=var, offset=beta, scale=gamma,
-            variance_epsilon=mc.BATCH_NORM_EPSILON, name='batch_norm')
+      #  conv = tf.nn.batch_normalization(
+      #      conv, mean=mean, variance=var, offset=beta, scale=gamma,
+      #      variance_epsilon=mc.BATCH_NORM_EPSILON, name='batch_norm')
 
       conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
+      
+      if bn:
+        conv_bias = self._batch_norm(conv_bias, scope.name)
 
       if relu:
         out = tf.nn.relu(conv_bias, 'relu')
@@ -732,6 +737,13 @@ class ModelSkeleton:
       new_h = int(h / stride)
       new_c = int(c*stride*stride)
       return tf.reshape(inputs, [n, new_w, new_h, new_c], name='reorg')
+
+  def _batch_norm(self, inputs, scope):
+    return tf.cond(self.is_training, \
+            lambda: tf.contrib.layers.batch_norm(inputs, is_training=True, \
+                             center=False, updates_collections=None, scope=scope+"_bn"), \
+            lambda: tf.contrib.layers.batch_norm(inputs, is_training=False, \
+                             center=False, updates_collections=None, scope=scope+"_bn", reuse=True))
 
   def filter_prediction(self, boxes, probs, cls_idx):
     """Filter bounding box predictions with probability threshold and

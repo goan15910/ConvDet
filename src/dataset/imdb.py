@@ -9,7 +9,7 @@ import shutil
 from PIL import Image, ImageFont, ImageDraw
 import cv2
 import numpy as np
-from utils.util import iou, batch_iou, drift_dist, recolor, scale_trans
+from utils.util import iou, batch_iou, drift_dist, recolor, scale_trans, rand_flip
 
 class imdb(object):
   """Image database."""
@@ -85,8 +85,10 @@ class imdb(object):
     images, scales = [], []
     for i in batch_idx:
       im = cv2.imread(self._image_path_at(i))
-      im = im.astype(np.float32, copy=False)
-      im -= mc.BGR_MEANS
+      if mc.SUB_BGR_MEANS:
+        im = im.astype(np.float32, copy=False)
+        im -= mc.BGR_MEANS
+        im = im.astype(np.uint8, copy=False)
       orig_h, orig_w, _ = [float(v) for v in im.shape]
       im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT))
       x_scale = mc.IMAGE_WIDTH/orig_w
@@ -154,7 +156,8 @@ class imdb(object):
           im, gt_bbox = drift_dist(im, gt_bbox, mc, orig_h, orig_w)
         elif mc.DATA_AUG_TYPE == 'YOLO':
           im, gt_bbox, label_this_batch = scale_trans(im, gt_bbox, label_this_batch)
-          im = recolor(im)
+          #im = recolor(im)
+        im, gt_bbox = rand_flip(im, gt_bbox, orig_w)
 
       # Remove BGR bias
       if mc.SUB_BGR_MEANS:

@@ -14,16 +14,15 @@ def pascal_voc_vgg16_config():
  
   # Data Augmentation
   #mc.LOSS_TYPE = 'YOLO'
-  #mc.DATA_AUG_TYPE = 'YOLO'
-  mc.SUB_BGR_MEANS = False
+  mc.DATA_AUG_TYPE = 'YOLO'
+  #mc.SUB_BGR_MEANS = False
 
   # Network Architecture
-  mc.FRONT_ON = True
   mc.BN = True
 
   mc.IMAGE_WIDTH           = 416
   mc.IMAGE_HEIGHT          = 416
-  mc.BATCH_SIZE            = 16
+  mc.BATCH_SIZE            = 32
 
   mc.WEIGHT_DECAY          = 0.0001
   mc.LEARNING_RATE         = 1e-3

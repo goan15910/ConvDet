@@ -72,7 +72,8 @@ def eval_once(saver, ckpt_path, summary_writer, imdb, model):
       _t['im_detect'].tic()
       det_boxes, det_probs, det_class = sess.run(
           [model.det_boxes, model.det_probs, model.det_class],
-          feed_dict={model.image_input:images, model.keep_prob: 1.0})
+          feed_dict={model.image_input:images, \
+                     model.is_training: False, model.keep_prob: 1.0})
       _t['im_detect'].toc()
 
       _t['misc'].tic()
