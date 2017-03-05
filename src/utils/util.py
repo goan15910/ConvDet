@@ -212,24 +212,22 @@ def recolor(im, a = .1):
 def scale_trans(im, gt_bbox, labels):
     # Set up parameters
     h, w, c = im.shape
-    scale = np.random.uniform() / 10. + 1.
+    scale = np.random.uniform(0, 2) / 10. + 1.
     max_offx = (scale-1.) * w
     max_offy = (scale-1.) * h
     offx = int(np.random.uniform() * max_offx)
     offy = int(np.random.uniform() * max_offy)
 	
     # Scale and translate image
-    im = cv2.resize(im, (0,0), fx = scale, fy = scale)
+    im = cv2.resize(im, (int(w*scale), int(h*scale)))
     im = im[offy : (offy + h), offx : (offx + w)]
 
     # Scale and translate gt bboxes
-    gt_bbox[:, 0:2] = gt_bbox[:, 0:2] * scale
+    gt_bbox = gt_bbox * scale
     valid_idx = (gt_bbox[:, 0] >= 0) * (gt_bbox[:, 1] >= 0) * \
                 (gt_bbox[:, 0] <= w) * (gt_bbox[:, 1] <= h)
-    #gt_bbox = np.array(map(bbox_transform, gt_bbox))
-    #gt_bbox[:, 0::2] = np.clip(gt_bbox[:, 0::2] - offx, 0, w)
-    #gt_bbox[:, 1::2] = np.clip(gt_bbox[:, 1::2] - offy, 0, h)
-    #gt_bbox = np.array(map(bbox_transform_inv, gt_bbox))
+    gt_bbox[:, 0] = np.clip(gt_bbox[:, 0] - offx, 0, w)
+    gt_bbox[:, 1] = np.clip(gt_bbox[:, 1] - offy, 0, h)
     return im, gt_bbox[valid_idx], labels[valid_idx]
 
 def drift_dist(im, gt_bbox, mc, orig_h, orig_w):

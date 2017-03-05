@@ -15,7 +15,6 @@ def pascal_voc_vgg16_config():
   # Data Augmentation
   #mc.LOSS_TYPE = 'YOLO'
   mc.DATA_AUG_TYPE = 'YOLO'
-  #mc.SUB_BGR_MEANS = False
 
   # Network Architecture
   mc.BN = True
@@ -26,7 +25,7 @@ def pascal_voc_vgg16_config():
 
   mc.WEIGHT_DECAY          = 0.0001
   mc.LEARNING_RATE         = 1e-3
-  mc.DECAY_STEPS           = 4e4
+  mc.DECAY_STEPS           = 2e4
   mc.MAX_GRAD_NORM         = 1.0
   mc.MOMENTUM              = 0.9
   mc.LR_DECAY_FACTOR       = 0.5
