@@ -15,7 +15,9 @@ class vid(imdb):
     imdb.__init__(self, 'vid_'+image_set, mc)
     self._image_set = image_set
     self._data_root_path = data_path
-    self._data_path = data_path
+    self._data_path = os.path.join(data_path, 'Data/VID', image_set)
+    self._idx_path = os.path.join(data_path, 'ImageSets/VID')
+    self._anno_path = os.path.join(data_path, 'Annotations/VID', image_set)
     self._classes = self.mc.CLASS_NAMES
     self._raw_cnames = ('n02691156', 'n02419796', 'n02131653', 'n02834778', 'n01503061',
                      'n02924116', 'n02958343', 'n02402425', 'n02084071', 'n02121808',
@@ -39,8 +41,7 @@ class vid(imdb):
     self._shuffle_image_idx()
 
   def _load_image_set_idx(self):
-    #TODO(jeff): customize image set file
-    image_set_file = os.path.join(self._data_path, 'ImageSets', 'VID',
+    image_set_file = os.path.join(self._idx_path, \
                                   self._image_set+'.txt')
     assert os.path.exists(image_set_file), \
         'File does not exist: {}'.format(image_set_file)
@@ -50,17 +51,15 @@ class vid(imdb):
     return image_idx
 
   def _image_path_at(self, idx):
-    #TODO(jeff): customize image path
-    image_path = idx + '.JPEG'
+    image_path = os.path.join(self._data_path, idx+'.JPEG')
     assert os.path.exists(image_path), \
         'Image does not exist: {}'.format(image_path)
     return image_path
 
   def _load_vid_annotation(self):
-    #TODO(jeff): customize vid annotation
     idx2annotation = {}
     for index in self._image_idx:
-      filename = index.replace('Data', 'Annotations') + '.xml'
+      filename = os.path.join(self._anno_path, index+'.xml')
       tree = ET.parse(filename)
       objs = tree.findall('object')
       bboxes = []
