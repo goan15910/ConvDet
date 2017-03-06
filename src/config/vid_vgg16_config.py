@@ -13,15 +13,16 @@ def vid_vgg16_config():
   mc.DEBUG_MODE            = False
   
   #mc.LOSS_TYPE = 'YOLO'
-  mc.LOSS_TYPE = 'SQT'
+  mc.DATA_AUG_TYPE = 'YOLO'
+  mc.BN = True
 
-  mc.IMAGE_WIDTH           = 432
-  mc.IMAGE_HEIGHT          = 432
-  mc.BATCH_SIZE            = 5
+  mc.IMAGE_WIDTH           = 416
+  mc.IMAGE_HEIGHT          = 416
+  mc.BATCH_SIZE            = 32
 
   mc.WEIGHT_DECAY          = 1e-4
-  mc.LEARNING_RATE         = 1e-2
-  mc.DECAY_STEPS           = 10000
+  mc.LEARNING_RATE         = 1e-3
+  mc.DECAY_STEPS           = 2e4
   mc.MAX_GRAD_NORM         = 1.0
   mc.MOMENTUM              = 0.9
   mc.LR_DECAY_FACTOR       = 0.5
@@ -30,7 +31,6 @@ def vid_vgg16_config():
   mc.LOSS_COEF_CONF_POS    = 75.0
   mc.LOSS_COEF_CONF_NEG    = 100.0
   mc.LOSS_COEF_CLASS       = 1.0
-
   mc.PLOT_PROB_THRESH      = 0.4
   mc.NMS_THRESH            = 0.4
   mc.PROB_THRESH           = 0.005
@@ -49,7 +49,7 @@ def vid_vgg16_config():
 
 #TODO(jeff): customize anchors for pascal voc
 def set_anchors(mc):
-  H, W, B = 27, 27, 9
+  H, W, B = 13, 13, 9
   anchor_shapes = np.reshape(
       [np.array(
           [[  100.,  70.], [ 200., 140.], [ 400.,  280.],
