@@ -525,30 +525,13 @@ class ModelSkeleton:
       conv = tf.nn.conv2d(
           inputs, kernel, [1, stride, stride, 1], padding=padding,
           name='convolution')
-  
-      # TODO(jeff): Add BN
-      #if bn:
-      #  mean_val   = tf.constant_initializer(0.0)
-      #  var_val    = tf.constant_initializer(1.0)
-      #  gamma_val  = tf.constant_initializer(1.0)
-      #  beta_val   = tf.constant_initializer(0.0)
-
-      #  gamma = _variable_on_device('gamma', [filters], gamma_val,
-      #                              trainable=(not freeze))
-      #  beta  = _variable_on_device('beta', [filters], beta_val,
-      #                              trainable=(not freeze))
-      #  mean  = _variable_on_device('mean', [filters], mean_val, trainable=False)
-      #  var   = _variable_on_device('var', [filters], var_val, trainable=False)
-      #  self.model_params += [gamma, beta, mean, var]
-        
-      #  conv = tf.nn.batch_normalization(
-      #      conv, mean=mean, variance=var, offset=beta, scale=gamma,
-      #      variance_epsilon=mc.BATCH_NORM_EPSILON, name='batch_norm')
 
       conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
       
       if bn:
         conv_bias = self._batch_norm(conv_bias, scope.name)
+        bn_vars = tf.get_collection(tf.GraphKeys.VARIABLES, scope=scope.name)
+        self.model_params += bn_vars
 
       if relu:
         out = tf.nn.relu(conv_bias, 'relu')
