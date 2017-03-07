@@ -176,7 +176,7 @@ def evaluate():
     if FLAGS.net == 'vgg16_v3':
       model = VGG16ConvDetV3(mc, FLAGS.gpu)
 
-    saver = tf.train.Saver(tf.all_variables())
+    saver = tf.train.Saver(model.model_params)
 
     summary_writer = tf.train.SummaryWriter(FLAGS.eval_dir, g)
     
