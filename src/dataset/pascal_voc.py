@@ -214,28 +214,6 @@ class pascal_voc(imdb):
           ious = batch_iou(gt_bboxes[:, :4], det[:4])
           max_iou = np.max(ious)
           gt_idx = np.argmax(ious)
-          # if not detected[gt_idx]:
-          #   if max_iou > 0.1:
-          #     if gt_bboxes[gt_idx, 4] == det[4]:
-          #       if max_iou >= 0.5:
-          #         if i < len(gt_bboxes):
-          #           num_correct += 1
-          #         detected[gt_idx] = True
-          #       else:
-          #         if i < len(gt_bboxes):
-          #           num_loc_error += 1
-          #           _save_detection(f, idx, 'loc', det, det[5])
-          #     else:
-          #       if i < len(gt_bboxes):
-          #         num_cls_error += 1
-          #         _save_detection(f, idx, 'cls', det, det[5])
-          #   else:
-          #     if i < len(gt_bboxes):
-          #       num_bg_error += 1
-          #       _save_detection(f, idx, 'bg', det, det[5])
-          # else:
-          #   if i < len(gt_bboxes):
-          #     num_repeated_error += 1
 
           if max_iou > 0.1:
             if gt_bboxes[gt_idx, 4] == det[4]:

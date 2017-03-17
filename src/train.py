@@ -133,34 +133,45 @@ def _process_batch(image_per_batch, label_per_batch, box_delta_per_batch, \
 
 def train():
   """Train SqueezeDet model"""
+  assert FLAGS.net in ['vgg16', 'vgg16_v2', 'vgg16_v3', 'yolo_v2'], \
+      'Selected neural net architecture not supported: {}'.format(FLAGS.net)
   assert FLAGS.dataset in ['KITTI', 'PASCAL_VOC', 'VID'], \
       'Either KITTI / PASCAL_VOC / VID'
   if FLAGS.dataset == 'KITTI':
-    mc = kitti_vgg16_config()
+    if FLAGS.net == 'yolo_v2':
+      raise NotImplementedError
+    else:
+      mc = kitti_vgg16_config()
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     train_imdb = kitti(FLAGS.train_set, FLAGS.data_path, mc)
     val_imdb = kitti(FLAGS.val_set, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'PASCAL_VOC':
-    mc = pascal_voc_vgg16_config()
+    if FLAGS.net == 'yolo_v2':
+      mc = pascal_voc_yolo_config()
+    else:
+      mc = pascal_voc_vgg16_config()
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     train_imdb = pascal_voc(FLAGS.train_set, FLAGS.year, FLAGS.data_path, mc)
     val_imdb = pascal_voc(FLAGS.val_set, FLAGS.year, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'VID':
-    mc = vid_vgg16_config()
+    if FLAGS.net == 'yolo_v2':
+      raise NotImplementedError
+    else:
+      mc = vid_vgg16_config()
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     train_imdb = vid(FLAGS.train_set, FLAGS.data_path, mc)
     val_imdb = vid(FLAGS.val_set, FLAGS.data_path, mc)
 
   with tf.Graph().as_default():
 
-    assert FLAGS.net in ['vgg16', 'vgg16_v2', 'vgg16_v3'], \
-        'Selected neural net architecture not supported: {}'.format(FLAGS.net)
     if FLAGS.net == 'vgg16':
       model = VGG16ConvDet(mc, FLAGS.gpu)
     elif FLAGS.net == 'vgg16_v2':
       model = VGG16ConvDetV2(mc, FLAGS.gpu)
     elif FLAGS.net == 'vgg16_v3':
       model = VGG16ConvDetV3(mc, FLAGS.gpu)
+    elif FLAGS.net == 'yolo_v2':
+      model = YOLO_V2(mc, FLAGS.gpu)
 
     # save model size, flops, activations by layers
     with open(os.path.join(FLAGS.train_dir, 'model_metrics.txt'), 'w') as f:
@@ -189,14 +200,14 @@ def train():
       os.path.join(FLAGS.train_dir, 'model_metrics.txt')))
 
     saver = tf.train.Saver(tf.all_variables())
-    summary_op = tf.merge_all_summaries()
+    summary_op = tf.summary.merge_all()
     init = tf.initialize_all_variables()
 
     sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
     sess.run(init)
     tf.train.start_queue_runners(sess=sess)
 
-    summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
+    summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
 
     for step in xrange(FLAGS.max_steps):
       start_time = time.time()

@@ -100,4 +100,4 @@ class VGG16ConvDetV3(ModelSkeleton):
     num_output = self.mc.ANCHOR_PER_GRID * (self.mc.CLASSES + 1 + 4)
     self.preds = self._conv_layer(
         'conv7', conv6_2, filters=num_output, size=3, stride=1,
-        padding='SAME', xavier=False, relu=False, stddev=0.0001)
+        padding='SAME', xavier=False, act=None, stddev=0.0001)

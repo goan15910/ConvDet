@@ -26,7 +26,7 @@ def _add_loss_summaries(total_loss):
   # Attach a scalar summary to all individual losses and the total loss; do the
   # same for the averaged version of the losses.
   for l in losses + [total_loss]:
-    tf.scalar_summary(l.op.name, l)
+    tf.summary.scalar(l.op.name, l)
 
 def _variable_on_device(name, shape, initializer, trainable=True):
   """Helper to create a Variable.
@@ -65,7 +65,7 @@ def _variable_with_weight_decay(name, shape, wd, initializer, trainable=True):
   """
   var = _variable_on_device(name, shape, initializer, trainable)
   if wd is not None and trainable:
-    weight_decay = tf.mul(tf.nn.l2_loss(var), wd, name='weight_loss')
+    weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
     tf.add_to_collection('losses', weight_decay)
   return var
 
@@ -160,7 +160,7 @@ class ModelSkeleton:
 
     with tf.variable_scope('bbox') as scope:
       with tf.variable_scope('stretching'):
-        delta_x, delta_y, delta_w, delta_h = tf.unpack(
+        delta_x, delta_y, delta_w, delta_h = tf.unstack(
             self.pred_box_delta, axis=2)
 
         anchor_x = mc.ANCHOR_BOX[:, 0]
@@ -212,7 +212,7 @@ class ModelSkeleton:
         self._activation_summary(ymaxs, 'box_ymax')
 
         self.det_boxes = tf.transpose(
-            tf.pack(util.bbox_transform_inv([xmins, ymins, xmaxs, ymaxs])),
+            tf.stack(util.bbox_transform_inv([xmins, ymins, xmaxs, ymaxs])),
             (1, 2, 0), name='bbox'
         )
 
@@ -226,13 +226,13 @@ class ModelSkeleton:
 
           w = tf.maximum(0.0, xmax-xmin, name='inter_w')
           h = tf.maximum(0.0, ymax-ymin, name='inter_h')
-          intersection = tf.mul(w, h, name='intersection')
+          intersection = tf.multiply(w, h, name='intersection')
 
         with tf.variable_scope('union'):
-          w1 = tf.sub(box1[2], box1[0], name='w1')
-          h1 = tf.sub(box1[3], box1[1], name='h1')
-          w2 = tf.sub(box2[2], box2[0], name='w2')
-          h2 = tf.sub(box2[3], box2[1], name='h2')
+          w1 = tf.subtract(box1[2], box1[0], name='w1')
+          h1 = tf.subtract(box1[3], box1[1], name='h1')
+          w2 = tf.subtract(box2[2], box2[0], name='w2')
+          h2 = tf.subtract(box2[3], box2[1], name='h2')
 
           union = w1*h1 + w2*h2 - intersection
 
@@ -241,8 +241,8 @@ class ModelSkeleton:
 
       self.ious = self.ious.assign(
           _tensor_iou(
-              util.bbox_transform(tf.unpack(self.det_boxes, axis=2)),
-              util.bbox_transform(tf.unpack(self.box_input, axis=2))
+              util.bbox_transform(tf.unstack(self.det_boxes, axis=2)),
+              util.bbox_transform(tf.unstack(self.box_input, axis=2))
           )
       )
       self._activation_summary(self.ious, 'conf_score')
@@ -250,7 +250,7 @@ class ModelSkeleton:
     with tf.variable_scope('probability') as scope:
       self._activation_summary(self.pred_class_probs, 'class_probs')
 
-      probs = tf.mul(
+      probs = tf.multiply(
           self.pred_class_probs,
           tf.reshape(self.pred_conf, [mc.BATCH_SIZE, mc.ANCHORS, 1]),
           name='final_class_prob'
@@ -263,8 +263,49 @@ class ModelSkeleton:
   
   def _add_yolo_loss_graph(self):
     """Define the YOLO loss operation."""
-    #TODO(jeff): add YOLO loss
-    raise NotImplementedError
+    mc = self.mc
+
+    with tf.variable_scope('class_regression') as scope:
+      self.class_loss = tf.truediv(
+          tf.reduce_sum(
+              mc.LOSS_COEF_CLASS * tf.square(
+                  self.input_mask*(self.pred_class_probs-self.labels))),
+          self.num_objects,
+          name='class_loss'
+      )
+      tf.add_to_collection('losses', self.class_loss)
+
+    with tf.variable_scope('confidence_score_regression') as scope:
+      input_mask = tf.reshape(self.input_mask, [mc.BATCH_SIZE, mc.ANCHORS])
+      self.conf_loss = tf.reduce_mean(
+          tf.reduce_sum(
+              tf.square((self.ious - self.pred_conf)) 
+              * (input_mask*mc.LOSS_COEF_CONF_POS \
+                 + (1-input_mask)*mc.LOSS_COEF_CONF_NEG),
+              reduction_indices=[1]
+          ),
+          name='confidence_loss'
+      )
+      tf.add_to_collection('losses', self.conf_loss)
+      tf.summary.scalar('mean iou', tf.reduce_sum(self.ious)/self.num_objects)
+
+    with tf.variable_scope('bounding_box_regression') as scope:
+      self.masked_pred_delta = self.input_mask * (self.pred_box_delta-self.box_delta_input)
+      self.bbox_loss = tf.multiply(
+          mc.LOSS_COEF_BBOX, 
+          tf.add(
+              tf.reduce_sum(
+                  tf.square(self.masked_pred_delta[:, :2])),
+              tf.reduce_sum(
+                  tf.square(tf.sqrt(self.masked_pred_delta[:, 2:])))
+          ),
+          name='bbox_loss'
+      )
+      tf.add_to_collection('losses', self.bbox_loss)
+
+    # add above losses as well as weight decay losses to form the total loss
+    self.loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
+
 
   def _add_sqt_loss_graph(self):
     """Define the SqueezeDet loss operation."""
@@ -295,7 +336,7 @@ class ModelSkeleton:
           name='confidence_loss'
       )
       tf.add_to_collection('losses', self.conf_loss)
-      tf.scalar_summary('mean iou', tf.reduce_sum(self.ious)/self.num_objects)
+      tf.summary.scalar('mean iou', tf.reduce_sum(self.ious)/self.num_objects)
 
     with tf.variable_scope('bounding_box_regression') as scope:
       self.bbox_loss = tf.truediv(
@@ -310,6 +351,7 @@ class ModelSkeleton:
     # add above losses as well as weight decay losses to form the total loss
     self.loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
 
+
   def _add_train_graph(self):
     """Define the training operation."""
     mc = self.mc
@@ -321,7 +363,7 @@ class ModelSkeleton:
                                     mc.LR_DECAY_FACTOR,
                                     staircase=True)
 
-    tf.scalar_summary('learning_rate', lr)
+    tf.summary.scalar('learning_rate', lr)
 
     _add_loss_summaries(self.loss)
 
@@ -335,11 +377,11 @@ class ModelSkeleton:
     apply_gradient_op = opt.apply_gradients(grads_vars, global_step=self.global_step)
 
     for var in tf.trainable_variables():
-        tf.histogram_summary(var.op.name, var)
+        tf.summary.histogram(var.op.name, var)
 
     for grad, var in grads_vars:
       if grad is not None:
-        tf.histogram_summary(var.op.name + '/gradients', grad)
+        tf.summary.histogram(var.op.name + '/gradients', grad)
 
     with tf.control_dependencies([apply_gradient_op]):
       self.train_op = tf.no_op(name='train')
@@ -351,111 +393,13 @@ class ModelSkeleton:
         tf.float32, [None, mc.IMAGE_HEIGHT, mc.IMAGE_WIDTH, 3],
         name='image_to_show'
     )
-    self.viz_op = tf.image_summary('sample_detection_results',
+    self.viz_op = tf.summary.image('sample_detection_results',
         self.image_to_show, collections='image_summary',
-        max_images=mc.BATCH_SIZE)
-
-  def _conv_bn_layer(
-      self, inputs, conv_param_name, bn_param_name, scale_param_name, filters,
-      size, stride, padding='SAME', freeze=False, relu=True,
-      conv_with_bias=False, stddev=0.001):
-    """ Convolution + BatchNorm + [relu] layer. Batch mean and var are treated
-    as constant. Weights have to be initialized from a pre-trained model or
-    restored from a checkpoint.
-
-    Args:
-      inputs: input tensor
-      conv_param_name: name of the convolution parameters
-      bn_param_name: name of the batch normalization parameters
-      scale_param_name: name of the scale parameters
-      filters: number of output filters.
-      size: kernel size.
-      stride: stride
-      padding: 'SAME' or 'VALID'. See tensorflow doc for detailed description.
-      freeze: if true, then do not train the parameters in this layer.
-      xavier: whether to use xavier weight initializer or not.
-      relu: whether to use relu or not.
-      conv_with_bias: whether or not add bias term to the convolution output.
-      stddev: standard deviation used for random weight initializer.
-    Returns:
-      A convolutional layer operation.
-    """
-    mc = self.mc
-
-    with tf.variable_scope(conv_param_name) as scope:
-      channels = inputs.get_shape()[3]
-
-      if mc.LOAD_PRETRAINED_MODEL:
-        cw = self.caffemodel_weight
-        kernel_val = np.transpose(cw[conv_param_name][0], [2,3,1,0])
-        if conv_with_bias:
-          bias_val = cw[conv_param_name][1]
-        mean_val   = cw[bn_param_name][0]
-        var_val    = cw[bn_param_name][1]
-        gamma_val  = cw[scale_param_name][0]
-        beta_val   = cw[scale_param_name][1]
-      else:
-        kernel_val = tf.truncated_normal_initializer(
-            stddev=stddev, dtype=tf.float32)
-        if conv_with_bias:
-          bias_val = tf.constant_initializer(0.0)
-        mean_val   = tf.constant_initializer(0.0)
-        var_val    = tf.constant_initializer(1.0)
-        gamma_val  = tf.constant_initializer(1.0)
-        beta_val   = tf.constant_initializer(0.0)
-
-      # re-order the caffe kernel with shape [out, in, h, w] -> tf kernel with
-      # shape [h, w, in, out]
-      kernel = _variable_with_weight_decay(
-          'kernels', shape=[size, size, int(channels), filters],
-          wd=mc.WEIGHT_DECAY, initializer=kernel_val, trainable=(not freeze))
-      self.model_params += [kernel]
-      if conv_with_bias:
-        biases = _variable_on_device('biases', [filters], bias_val,
-                                     trainable=(not freeze))
-        self.model_params += [biases]
-      gamma = _variable_on_device('gamma', [filters], gamma_val,
-                                  trainable=(not freeze))
-      beta  = _variable_on_device('beta', [filters], beta_val,
-                                  trainable=(not freeze))
-      mean  = _variable_on_device('mean', [filters], mean_val, trainable=False)
-      var   = _variable_on_device('var', [filters], var_val, trainable=False)
-      self.model_params += [gamma, beta, mean, var]
-
-      conv = tf.nn.conv2d(
-          inputs, kernel, [1, stride, stride, 1], padding=padding,
-          name='convolution')
-      if conv_with_bias:
-        conv = tf.nn.bias_add(conv, biases, name='bias_add')
-
-      #conv = tf.nn.batch_normalization(
-      #    conv, mean=mean, variance=var, offset=beta, scale=gamma,
-      #    variance_epsilon=mc.BATCH_NORM_EPSILON, name='batch_norm')
-      conv = self._batch_norm(conv, scope.name)
-
-      self.model_size_counter.append(
-          (conv_param_name, (1+size*size*int(channels))*filters)
-      )
-      out_shape = conv.get_shape().as_list()
-      num_flops = \
-        (1+2*int(channels)*size*size)*filters*out_shape[1]*out_shape[2]
-      if relu:
-        num_flops += 2*filters*out_shape[1]*out_shape[2]
-      self.flop_counter.append((conv_param_name, num_flops))
-
-      self.activation_counter.append(
-          (conv_param_name, out_shape[1]*out_shape[2]*out_shape[3])
-      )
-
-      if relu:
-        return tf.nn.relu(conv)
-      else:
-        return conv
-
+        max_outputs=mc.BATCH_SIZE)
 
   def _conv_layer(
       self, layer_name, inputs, filters, size, stride, padding='SAME',
-      freeze=False, xavier=False, bn=False, relu=True, stddev=0.001):
+      freeze=False, xavier=False, bn=False, act='relu', stddev=0.001):
     """Convolutional layer operation constructor.
 
     Args:
@@ -467,7 +411,7 @@ class ModelSkeleton:
       padding: 'SAME' or 'VALID'. See tensorflow doc for detailed description.
       freeze: if true, then do not train the parameters in this layer.
       xavier: whether to use xavier weight initializer or not.
-      relu: whether to use relu or not.
+      act: activation type (none / relu / lrelu)
       stddev: standard deviation used for random weight initializer.
     Returns:
       A convolutional layer operation.
@@ -533,8 +477,12 @@ class ModelSkeleton:
         bn_vars = tf.get_collection(tf.GraphKeys.VARIABLES, scope=scope.name)
         self.model_params += bn_vars
 
-      if relu:
+      assert act in [None, 'relu', 'lrelu'], \
+            "Invalid type of conv activation"
+      if act == 'relu':
         out = tf.nn.relu(conv_bias, 'relu')
+      elif act == 'lrelu':
+        out = self._lrelu(conv_bias, scope.name)
       else:
         out = conv_bias
 
@@ -544,7 +492,7 @@ class ModelSkeleton:
       out_shape = out.get_shape().as_list()
       num_flops = \
         (1+2*int(channels)*size*size)*filters*out_shape[1]*out_shape[2]
-      if relu:
+      if act is not None:
         num_flops += 2*filters*out_shape[1]*out_shape[2]
       self.flop_counter.append((layer_name, num_flops))
 
@@ -700,7 +648,7 @@ class ModelSkeleton:
       shape2 = inputs2.get_shape().as_list()
       assert shape1[:-1] == shape2[:-1], \
           'Cannot concat unmatch tensor shapes ({}, {}, {}, {}), ({}, {}, {}, {})'.format(*(shape1 + shape2))
-      return tf.concat(3, [inputs1, inputs2], name='concat')
+      return tf.concat([inputs1, inputs2], 3, name='concat')
 
   def _reorg_layer(self, layer_name, inputs, stride):
     """Reorganization layer
@@ -720,6 +668,9 @@ class ModelSkeleton:
       new_h = int(h / stride)
       new_c = int(c*stride*stride)
       return tf.reshape(inputs, [n, new_w, new_h, new_c], name='reorg')
+
+  def _lrelu(self, inputs, scope, alpha=0.1):
+    return tf.maximum(alpha * inputs, inputs, name='lrelu')
 
   def _batch_norm(self, inputs, scope):
     return tf.cond(self.is_training, \
@@ -778,13 +729,13 @@ class ModelSkeleton:
       nothing
     """
     with tf.variable_scope('activation_summary') as scope:
-      tf.histogram_summary(
+      tf.summary.histogram(
           'activation_summary/'+layer_name, x)
-      tf.scalar_summary(
+      tf.summary.scalar(
           'activation_summary/'+layer_name+'/sparsity', tf.nn.zero_fraction(x))
-      tf.scalar_summary(
+      tf.summary.scalar(
           'activation_summary/'+layer_name+'/average', tf.reduce_mean(x))
-      tf.scalar_summary(
+      tf.summary.scalar(
           'activation_summary/'+layer_name+'/max', tf.reduce_max(x))
-      tf.scalar_summary(
+      tf.summary.scalar(
           'activation_summary/'+layer_name+'/min', tf.reduce_min(x))

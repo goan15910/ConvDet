@@ -1,14 +1,12 @@
 #!/bin/bash
-# Usage: CUDA_VISIBLE_DEVICES=GPU ./scripts/eval_val.sh GPU DATASET
+# Usage: CUDA_VISIBLE_DEVICES=GPU ./scripts/eval_val.sh GPU NET DATASET
 
 export PYTHONUNBUFFERED="True"
 
 GPU=$1
-DATASET=$2
+NET=$2
+DATASET=$3
 
-#NET=vgg16
-#NET=vgg16_v2
-NET=vgg16_v3
 
 case $DATASET in
   PASCAL_VOC)
@@ -35,7 +33,7 @@ case $DATASET in
     ;;
 esac
 
-EVAL_DIR=experiments/vgg16/eval_val/${DATASET}
+EVAL_DIR=experiments/${NET}/eval_val/${DATASET}
 if [ ! -d "$EVAL_DIR" ]; then
     mkdir "$EVAL_DIR"
 fi

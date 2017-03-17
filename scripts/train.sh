@@ -1,15 +1,13 @@
 #!/bin/bash
-# Usage: CUDA_VISIBLE_DEVICES=GPU ./scripts/train.sh GPU WEIGHT DATASET
+# Usage: CUDA_VISIBLE_DEVICES=GPU ./scripts/train.sh GPU NET WEIGHT DATASET
 
 export PYTHONUNBUFFERED="True"
 
 GPU=$1
-WEIGHT=$2
-DATASET=$3
+NET=$2
+WEIGHT=$3
+DATASET=$4
 
-#NET=vgg16
-#NET=vgg16_v2
-NET=vgg16_v3
 
 case $DATASET in
   PASCAL_VOC)
@@ -37,7 +35,7 @@ case $DATASET in
 esac
 
 DEBUG=false
-TRAIN_DIR=experiments/vgg16/train/${DATASET}
+TRAIN_DIR=experiments/${NET}/train/${DATASET}
 if [ ! -d "$TRAIN_DIR" ]; then
     mkdir "$TRAIN_DIR"
 fi

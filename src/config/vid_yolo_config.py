@@ -1,19 +1,19 @@
 # Author: 
 
-"""Model configuration for pascal dataset"""
+"""Model configuration for VID dataset"""
 
 import numpy as np
 
 from config import base_model_config
 
-def pascal_voc_vgg16_config():
+def vid_yolo_config():
   """Specify the parameters to tune below."""
-  mc                       = base_model_config('PASCAL_VOC')
+  mc                       = base_model_config('VID')
 
   mc.DEBUG_MODE            = False
- 
+  
   # Data Augmentation
-  #mc.LOSS_TYPE = 'YOLO'
+  mc.LOSS_TYPE = 'YOLO'
   mc.DATA_AUG_TYPE = 'YOLO'
 
   # Network Architecture
@@ -21,18 +21,18 @@ def pascal_voc_vgg16_config():
 
   mc.IMAGE_WIDTH           = 416
   mc.IMAGE_HEIGHT          = 416
-  mc.BATCH_SIZE            = 32
+  mc.BATCH_SIZE            = 64
 
-  mc.WEIGHT_DECAY          = 0.0001
+  mc.WEIGHT_DECAY          = 1e-4
   mc.LEARNING_RATE         = 1e-3
   mc.DECAY_STEPS           = 2e4
   mc.MAX_GRAD_NORM         = 1.0
   mc.MOMENTUM              = 0.9
   mc.LR_DECAY_FACTOR       = 0.5
 
-  mc.LOSS_COEF_BBOX        = 5.0
-  mc.LOSS_COEF_CONF_POS    = 75.0
-  mc.LOSS_COEF_CONF_NEG    = 100.0
+  mc.LOSS_COEF_BBOX        = 1.0
+  mc.LOSS_COEF_CONF_POS    = 5.0
+  mc.LOSS_COEF_CONF_NEG    = 1.0
   mc.LOSS_COEF_CLASS       = 1.0
 
   mc.PLOT_PROB_THRESH      = 0.4
@@ -41,9 +41,6 @@ def pascal_voc_vgg16_config():
   mc.TOP_N_DETECTION       = 64
 
   mc.DATA_AUGMENTATION     = True
-  mc.DRIFT_X               = 50
-  mc.DRIFT_Y               = 50
-  mc.EXCLUDE_HARD_EXAMPLES = False
 
   mc.ANCHOR_BOX            = set_anchors(mc)
   mc.ANCHORS               = len(mc.ANCHOR_BOX)
