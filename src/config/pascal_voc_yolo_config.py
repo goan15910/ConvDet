@@ -12,6 +12,8 @@ def pascal_voc_yolo_config():
 
   mc.DEBUG_MODE            = False
  
+  #mc.SUB_BGR_MEANS = False
+
   # Data Augmentation
   mc.LOSS_TYPE = 'YOLO'
   mc.DATA_AUG_TYPE = 'YOLO'
@@ -21,14 +23,15 @@ def pascal_voc_yolo_config():
 
   mc.IMAGE_WIDTH           = 416
   mc.IMAGE_HEIGHT          = 416
-  mc.BATCH_SIZE            = 64
+  mc.BATCH_SIZE            = 32
 
   mc.WEIGHT_DECAY          = 0.0001
   mc.LEARNING_RATE         = 1e-3
-  mc.DECAY_STEPS           = 2e4
+  mc.LR_POLICY             = 'step'
+  mc.LR_STEP_BOUNDRY       = [10000, 15000]
+  mc.LR_STEP_VALUE         = [1e-3, 1e-4, 1e-5]
   mc.MAX_GRAD_NORM         = 1.0
   mc.MOMENTUM              = 0.9
-  mc.LR_DECAY_FACTOR       = 0.5
 
   mc.LOSS_COEF_BBOX        = 1.0
   mc.LOSS_COEF_CONF_POS    = 5.0
@@ -44,17 +47,16 @@ def pascal_voc_yolo_config():
 
   mc.ANCHOR_BOX            = set_anchors(mc)
   mc.ANCHORS               = len(mc.ANCHOR_BOX)
-  mc.ANCHOR_PER_GRID       = 9
+  mc.ANCHOR_PER_GRID       = 5
 
   return mc
 
 def set_anchors(mc):
-  H, W, B = 13, 13, 9
+  H, W, B = 13, 13, 5
   anchor_shapes = np.reshape(
       [np.array(
-          [[  100.,  70.], [ 200., 140.], [ 400.,  280.],
-           [ 92.,  92.], [  185.,  185.], [ 370., 370.],
-           [ 64., 96.], [ 128., 192.], [  256.,  384.]])] * H * W,
+          [[  240.,  150.], [ 60., 80.], [ 250.,  350.],
+           [ 420.,  260.], [  120.,  210.]])] * H * W,
       (H, W, B, 2)
   )
   center_x = np.reshape(

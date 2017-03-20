@@ -94,6 +94,9 @@ def base_model_config(dataset='PASCAL_VOC'):
   # loss coefficient for bounding box regression
   cfg.LOSS_COEF_BBOX = 10.0
                            
+  # learning rate decay policy
+  cfg.LR_DECAY_POLICY = 'exponential'
+
   # reduce step size after this many steps
   cfg.DECAY_STEPS = 10000
 
@@ -102,6 +105,10 @@ def base_model_config(dataset='PASCAL_VOC'):
 
   # learning rate
   cfg.LEARNING_RATE = 0.005
+
+  # learning rate step config
+  cfg.LR_STEP_BOUNDRY = None
+  cfg.LR_STEP_VALUE = None
 
   # momentum
   cfg.MOMENTUM = 0.9

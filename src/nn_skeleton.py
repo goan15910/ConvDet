@@ -266,11 +266,9 @@ class ModelSkeleton:
     mc = self.mc
 
     with tf.variable_scope('class_regression') as scope:
-      self.class_loss = tf.truediv(
-          tf.reduce_sum(
-              mc.LOSS_COEF_CLASS * tf.square(
-                  self.input_mask*(self.pred_class_probs-self.labels))),
-          self.num_objects,
+      self.class_loss = tf.reduce_mean(
+          tf.nn.softmax_cross_entropy_with_logits(labels=self.input_mask*self.labels, \
+              logits=self.input_mask*self.pred_class_probs),
           name='class_loss'
       )
       tf.add_to_collection('losses', self.class_loss)
@@ -290,15 +288,12 @@ class ModelSkeleton:
       tf.summary.scalar('mean iou', tf.reduce_sum(self.ious)/self.num_objects)
 
     with tf.variable_scope('bounding_box_regression') as scope:
-      self.masked_pred_delta = self.input_mask * (self.pred_box_delta-self.box_delta_input)
+      # TODO(jeff): modify to TRUE yolo bbox loss
       self.bbox_loss = tf.multiply(
           mc.LOSS_COEF_BBOX, 
-          tf.add(
-              tf.reduce_sum(
-                  tf.square(self.masked_pred_delta[:, :2])),
-              tf.reduce_sum(
-                  tf.square(tf.sqrt(self.masked_pred_delta[:, 2:])))
-          ),
+          tf.reduce_sum(
+              tf.square(self.input_mask * \
+                  (self.pred_box_delta-self.box_delta_input))),
           name='bbox_loss'
       )
       tf.add_to_collection('losses', self.bbox_loss)
@@ -357,11 +352,18 @@ class ModelSkeleton:
     mc = self.mc
 
     self.global_step = tf.Variable(0, name='global_step', trainable=False)
-    lr = tf.train.exponential_decay(mc.LEARNING_RATE,
+    assert mc.LR_POLICY in ['exponential', 'step'], \
+            'Invalid learning rate policy'
+    if mc.LR_POLICY == 'exponential':
+      lr = tf.train.exponential_decay(mc.LEARNING_RATE,
                                     self.global_step,
                                     mc.DECAY_STEPS,
                                     mc.LR_DECAY_FACTOR,
                                     staircase=True)
+    elif mc.LR_POLICY == 'step':
+      lr = tf.train.piecewise_constant(self.global_step,
+                                       mc.LR_STEP_BOUNDRY,
+                                       mc.LR_STEP_VALUE)
 
     tf.summary.scalar('learning_rate', lr)
 

@@ -144,7 +144,6 @@ def train():
       mc = kitti_vgg16_config()
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     train_imdb = kitti(FLAGS.train_set, FLAGS.data_path, mc)
-    val_imdb = kitti(FLAGS.val_set, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'PASCAL_VOC':
     if FLAGS.net == 'yolo_v2':
       mc = pascal_voc_yolo_config()
@@ -152,15 +151,13 @@ def train():
       mc = pascal_voc_vgg16_config()
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     train_imdb = pascal_voc(FLAGS.train_set, FLAGS.year, FLAGS.data_path, mc)
-    val_imdb = pascal_voc(FLAGS.val_set, FLAGS.year, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'VID':
     if FLAGS.net == 'yolo_v2':
-      raise NotImplementedError
+      mc = vid_yolo_config()
     else:
       mc = vid_vgg16_config()
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     train_imdb = vid(FLAGS.train_set, FLAGS.data_path, mc)
-    val_imdb = vid(FLAGS.val_set, FLAGS.data_path, mc)
 
   with tf.Graph().as_default():
 
@@ -258,9 +255,9 @@ def train():
         viz_summary = sess.run(
             model.viz_op, feed_dict={model.image_to_show: image_per_batch})
 
-        num_discarded_labels_op = tf.scalar_summary(
+        num_discarded_labels_op = tf.summary.scalar(
             'counter/num_discarded_labels', num_discarded_labels)
-        num_labels_op = tf.scalar_summary(
+        num_labels_op = tf.summary.scalar(
             'counter/num_labels', num_labels)
 
         counter_summary_str = sess.run([num_discarded_labels_op, num_labels_op])

@@ -20,6 +20,7 @@ from config import *
 from dataset import pascal_voc, kitti, vid
 from utils.util import sparse_to_dense, bgr_to_rgb, bbox_transform
 import matplotlib.pyplot as plt
+import joblib
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -84,6 +85,7 @@ def test_read_batch():
   # read batch input
   image_per_batch, label_per_batch, box_delta_per_batch, aidx_per_batch, \
       bbox_per_batch = imdb.read_batch()
+  joblib.dump(bbox_per_batch, '/tmp3/jeff/bbox.pkl')
 
   label_indices, bbox_indices, box_delta_values, mask_indices, box_values, \
       = [], [], [], [], []

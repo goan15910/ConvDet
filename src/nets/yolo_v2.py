@@ -45,11 +45,11 @@ class YOLO_V2(ModelSkeleton):
 
     with tf.variable_scope('darknet19') as scope:
       conv1 = self._conv_layer(
-          'conv1', self.image_input, filters=32, size=3, stride=1, bn=self.BN, act='lrelu')
+          'conv1', self.image_input, filters=32, size=3, stride=1, bn=self.BN, act='lrelu', freeze=True)
       pool1 = self._pooling_layer(
           'pool1', conv1, size=2, stride=2)
       conv2 = self._conv_layer(
-          'conv2', pool1, filters=64, size=3, stride=1, bn=self.BN, act='lrelu')
+          'conv2', pool1, filters=64, size=3, stride=1, bn=self.BN, act='lrelu', freeze=True)
       pool2 = self._pooling_layer(
           'pool2', conv2, size=2, stride=2)
       conv3 = self._conv_layer(
@@ -100,8 +100,7 @@ class YOLO_V2(ModelSkeleton):
       concat20 = self._concat_layer('concat20', conv20, reorg20)
       conv21 = self._conv_layer(
           'conv21', concat20, filters=1024, size=3, stride=1, bn=self.BN, act='lrelu')
-
-    num_output = self.mc.ANCHOR_PER_GRID * (self.mc.CLASSES + 1 + 4)
-    self.preds = self._conv_layer(
-        'conv22', conv21, filters=num_output, size=1, stride=1,
-        padding='SAME', xavier=False, act=None, stddev=0.0001)
+      num_output = self.mc.ANCHOR_PER_GRID * (self.mc.CLASSES + 1 + 4)
+      self.preds = self._conv_layer(
+          'conv22', conv21, filters=num_output, size=1, stride=1,
+          padding='SAME', xavier=False, act=None, stddev=0.0001)
