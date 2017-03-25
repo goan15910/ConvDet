@@ -505,7 +505,7 @@ class ModelSkeleton:
       return out
   
   def _pooling_layer(
-      self, layer_name, inputs, size, stride, padding='SAME'):
+      self, layer_name, inputs, size, stride, padding='SAME', ptype='max'):
     """Pooling layer operation constructor.
 
     Args:
@@ -517,12 +517,28 @@ class ModelSkeleton:
     Returns:
       A pooling layer operation.
     """
-
+    assert ptype in ['max', 'avg', 'global_avg'], \
+        'Invalid pooling type: {}'.format(ptype)
     with tf.variable_scope(layer_name) as scope:
-      out =  tf.nn.max_pool(inputs, 
-                            ksize=[1, size, size, 1], 
-                            strides=[1, stride, stride, 1],
-                            padding=padding)
+      if ptype == 'max':
+        out =  tf.nn.max_pool(inputs, 
+                              ksize=[1, size, size, 1], 
+                              strides=[1, stride, stride, 1],
+                              padding=padding)
+      elif ptype == 'avg':
+        out =  tf.nn.avg_pool(inputs, 
+                              ksize=[1, size, size, 1], 
+                              strides=[1, stride, stride, 1],
+                              padding=padding)
+      elif ptype == 'global_avg':
+        i_shape = inputs.get_shape().as_list()
+        assert i_shape[1] == i_shape[2], \
+            'width must equal to height for global avg'
+        out =  tf.nn.avg_pool(inputs, 
+                              ksize=[1, i_shape[1], i_shape[1], 1], 
+                              strides=[1, i_shape[1], i_shape[1], 1],
+                              padding=padding)
+
       activation_size = np.prod(out.get_shape().as_list()[1:])
       self.activation_counter.append((layer_name, activation_size))
       return out

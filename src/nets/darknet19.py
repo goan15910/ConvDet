@@ -1,5 +1,5 @@
 
-"""YOLO-v2 model."""
+"""Darknet19 model."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -16,25 +16,33 @@ import tensorflow as tf
 from nn_skeleton import ModelSkeleton
 
 
-class YOLO_V2(ModelSkeleton):
+class DARKNET19(ModelSkeleton):
   def __init__(self, mc, gpu_id):
     with tf.device('/gpu:{}'.format(gpu_id)):
       ModelSkeleton.__init__(self, mc)
 
       self.BN = mc.BN
       self._add_forward_graph()
-      self._add_interpretation_graph()
-      assert mc.LOSS_TYPE in ['SQT', 'YOLO'], \
-          'Loss type {0} not defined'.format(mc.LOSS_TYPE)
-      if mc.LOSS_TYPE == 'SQT':
-        self._add_sqt_loss_graph()
-      elif mc.LOSS_TYPE == 'YOLO':
-        self._add_yolo_loss_graph()
-      self._add_train_graph()
-      self._add_viz_graph()
+      self._add_cls_interpretation_graph()
+
+  def _add_cls_interpretation_graph(self):
+    """Inference logits"""
+    self.pred_class_probs = tf.nn.softmax(
+        tf.reshape(
+            self.preds,
+            [-1, mc.CLASSES]
+        ),
+        name='pred_class_probs'
+    )
+
+    self.pred_class = tf.argmax(
+        self.pred_class_probs,
+        axis=0,
+        name='class_idx'
+    )
 
   def _add_forward_graph(self):
-    """Build the VGG-16 model."""
+    """Build the Darknet19 model."""
 
     if self.mc.LOAD_PRETRAINED_MODEL:
       assert tf.gfile.Exists(self.mc.PRETRAINED_MODEL_PATH), \
@@ -89,17 +97,8 @@ class YOLO_V2(ModelSkeleton):
           'conv17', conv16, filters=512, size=1, stride=1, bn=self.BN, act='lrelu')
       conv18 = self._conv_layer(
           'conv18', conv17, filters=1024, size=3, stride=1, bn=self.BN, act='lrelu')
-
-    with tf.variable_scope('detector') as scope:
       conv19 = self._conv_layer(
-          'conv19', conv18, filters=1024, size=3, stride=1, bn=self.BN, act='lrelu')
-      conv20 = self._conv_layer(
-          'conv20', conv19, filters=1024, size=3, stride=1, bn=self.BN, act='lrelu')
-      reorg20 = self._reorg_layer('reorg20', conv13, stride=2)
-      concat20 = self._concat_layer('concat20', conv20, reorg20)
-      conv21 = self._conv_layer(
-          'conv21', concat20, filters=1024, size=3, stride=1, bn=self.BN, act='lrelu')
-      num_output = self.mc.ANCHOR_PER_GRID * (self.mc.CLASSES + 1 + 4)
-      self.preds = self._conv_layer(
-          'conv22', conv21, filters=num_output, size=1, stride=1,
+          'conv19', conv18, filters=self.mc.CLASSES, size=1, stride=1,
           padding='SAME', xavier=False, act=None, stddev=0.0001)
+      self.preds = self._pooling_layer(
+          'global_pool', conv19, size=None, stride=None, ptype='global_avg')

@@ -17,7 +17,7 @@ from six.moves import xrange
 import tensorflow as tf
 
 from config import *
-from dataset import pascal_voc, kitti, vid
+from dataset import pascal_voc, kitti, vid, imagenet
 from utils.util import sparse_to_dense, bgr_to_rgb, bbox_transform
 import matplotlib.pyplot as plt
 import joblib
@@ -25,7 +25,7 @@ import joblib
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('dataset', 'PASCAL_VOC',
-                           """KITTI / PASCAL_VOC / VID""")
+                           """KITTI / PASCAL_VOC / VID / ILSVRC2013""")
 tf.app.flags.DEFINE_string('data_path', '/tmp3/jeff/VOCdevkit2007', """Root directory of data""")
 tf.app.flags.DEFINE_string('image_set', 'train',
                            """ Can be train, trainval, val, or test""")
@@ -59,6 +59,14 @@ def _draw_box(im, box_list, label_list, color=(0,255,0), cdict=None, form='cente
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.putText(im, label, (xmin, ymax), font, 0.3, c, 1)
 
+def _draw_cls_label(im, label, cdict=None):
+  h, w, _ = im.shape
+  if cdict and (l in cdict):
+    c = cdict[l]
+  else:
+    c = (0, 0, 255)
+  font = cv2.FONT_HERSHEY_SIMPLEX
+  cv2.putText(im, label, (0, h), font, 0.3, c, 1)
 
 def _viz_gt_bboxes(mc, images, bboxes, labels):
   for i in range(len(images)):
@@ -68,10 +76,17 @@ def _viz_gt_bboxes(mc, images, bboxes, labels):
         [mc.CLASS_NAMES[idx] for idx in labels[i]],
         (0, 255, 0))
 
+def _viz_cls_labels(mc, images, labels):
+  for i in xrange(len(images)):
+    # draw ground truth
+    _draw_cls_label(images[i], labels[i])
+
 def test_read_batch():
   """Test read batch function"""
-  assert FLAGS.dataset in ['KITTI', 'PASCAL_VOC', 'VID'], \
-      'Either KITTI / PASCAL_VOC / VID'
+  assert FLAGS.dataset in ['KITTI', 'PASCAL_VOC', 'VID', 'ILSVRC2013'], \
+      """
+      Invalid dataset {}
+      Either KITTI / PASCAL_VOC / VID / ILSVRC2013""".format(FLAGS.dataset)
   if FLAGS.dataset == 'KITTI':
     mc = kitti_vgg16_config()
     imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
@@ -81,37 +96,48 @@ def test_read_batch():
   elif FLAGS.dataset == 'VID':
     mc = vid_vgg16_config()
     imdb = vid(FLAGS.image_set, FLAGS.data_path, mc)
+  elif FLAGS.dataset == 'ILSVRC2013':
+    mc = imagenet_config()
+    imdb = imagenet(FLAGS.image_set, FLAGS.data_path, mc)
 
-  # read batch input
-  image_per_batch, label_per_batch, box_delta_per_batch, aidx_per_batch, \
-      bbox_per_batch = imdb.read_batch()
-  joblib.dump(bbox_per_batch, '/tmp3/jeff/bbox.pkl')
+  if FLAGS.dataset != 'ILSVRC2013':
+    # read batch input
+    image_per_batch, label_per_batch, box_delta_per_batch, aidx_per_batch, \
+        bbox_per_batch = imdb.read_batch()
+    #joblib.dump(bbox_per_batch, '/tmp3/jeff/bbox.pkl')
 
-  label_indices, bbox_indices, box_delta_values, mask_indices, box_values, \
-      = [], [], [], [], []
-  aidx_set = set()
-  num_discarded_labels = 0
-  num_labels = 0
-  for i in range(len(label_per_batch)): # batch_size
-    for j in range(len(label_per_batch[i])): # number of annotations
-      num_labels += 1
-      if (i, aidx_per_batch[i][j]) not in aidx_set:
-        aidx_set.add((i, aidx_per_batch[i][j]))
-        label_indices.append(
-            [i, aidx_per_batch[i][j], label_per_batch[i][j]])
-        mask_indices.append([i, aidx_per_batch[i][j]])
-        bbox_indices.extend(
-            [[i, aidx_per_batch[i][j], k] for k in range(4)])
-        box_delta_values.extend(box_delta_per_batch[i][j])
-        box_values.extend(bbox_per_batch[i][j])
-      else:
-        num_discarded_labels += 1
+    label_indices, bbox_indices, box_delta_values, mask_indices, box_values, \
+        = [], [], [], [], []
+    aidx_set = set()
+    num_discarded_labels = 0
+    num_labels = 0
+    for i in range(len(label_per_batch)): # batch_size
+      for j in range(len(label_per_batch[i])): # number of annotations
+        num_labels += 1
+        if (i, aidx_per_batch[i][j]) not in aidx_set:
+          aidx_set.add((i, aidx_per_batch[i][j]))
+          label_indices.append(
+              [i, aidx_per_batch[i][j], label_per_batch[i][j]])
+          mask_indices.append([i, aidx_per_batch[i][j]])
+          bbox_indices.extend(
+              [[i, aidx_per_batch[i][j], k] for k in range(4)])
+          box_delta_values.extend(box_delta_per_batch[i][j])
+          box_values.extend(bbox_per_batch[i][j])
+        else:
+          num_discarded_labels += 1
 
-  print ('Warning: Discarded {}/({}) labels that are assigned to the same'
-         'anchor'.format(num_discarded_labels, num_labels))
+    print ('Warning: Discarded {}/({}) labels that are assigned to the same'
+           'anchor'.format(num_discarded_labels, num_labels))
 
-  # Visualize detections
-  _viz_gt_bboxes(mc, image_per_batch, bbox_per_batch, label_per_batch)
+    # Visualize detections
+    _viz_gt_bboxes(mc, image_per_batch, bbox_per_batch, label_per_batch)
+
+  elif FLAGS.dataset == 'ILSVRC2013':
+    image_per_batch, label_per_batch, _ = imdb.read_cls_batch()
+    label_per_batch = map(str, label_per_batch)
+
+    # TODO(jeff): visualize classification image
+    _viz_cls_labels(mc, image_per_batch, label_per_batch)
 
   # Save the images
   for i,im in enumerate(image_per_batch):
