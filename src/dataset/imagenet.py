@@ -14,7 +14,7 @@ class imagenet(imdb):
     self._image_set = image_set
     self._data_path = data_path
     self._classes = self.mc.CLASS_NAMES
-    self._class_to_idx = dict(zip(self.classes, xrange(self.num_classes)))
+    #self._class_to_idx = dict(zip(self.classes, range(self.num_classes)))
 
     # a list of string indices of images in the directory
     self._image_idx = self._load_image_set_idx() 
@@ -88,8 +88,8 @@ class imagenet(imdb):
       x_scale = mc.IMAGE_WIDTH/orig_w
       y_scale = mc.IMAGE_HEIGHT/orig_h
       images.append(im)
-      label_idx = int(i.split('_')[-1])
-      labels.append(self.labels[label_idx])
+      label_idx = int(i.split('_')[-1])-1
+      labels.append(self.labels[label_idx]-1)
       scales.append((x_scale, y_scale))
 
     return images, labels, scales

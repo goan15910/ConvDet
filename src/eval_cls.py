@@ -3,7 +3,7 @@
 
 from __future__ import absolute_import
 from __future__ import division
-from __future__ import print_function
+#from __future__ import print_function
 
 import cv2
 from datetime import datetime
@@ -45,7 +45,7 @@ def evaluate():
   with tf.Graph().as_default() as g:
 
     mc = imagenet_config()
-    mc.LOAD_PRETRAINED_MODEL = pkl_model_path
+    mc.PRETRAINED_MODEL_PATH = FLAGS.pkl_path
     imdb = imagenet(FLAGS.image_set, FLAGS.data_path, mc)
 
     assert FLAGS.net == 'darknet19', \
@@ -61,10 +61,13 @@ def evaluate():
 
       # testing
       num_images = len(imdb.image_idx)
+      num_batches = np.ceil(float(num_images) / mc.BATCH_SIZE).astype(np.int64)
 
       _t = {'im_cls': Timer(), 'im_read': Timer()}
 
-      for i in xrange(num_images):
+      all_labels, all_preds = [], []
+      for i in xrange(num_batches):
+        print '{} / {}'.format(i+1, num_batches)
         _t['im_read'].tic()
         images, labels, scales = imdb.read_cls_batch(shuffle=False)
         _t['im_read'].toc()
@@ -75,8 +78,22 @@ def evaluate():
             feed_dict={model.image_input:images, \
                        model.is_training: False})
         _t['im_cls'].toc()
+        all_labels.extend(labels)
+        all_preds.extend(cls_idx[0].tolist())
 
       # evaluate
+      acc = 0.
+      for i in xrange(num_images):
+        if all_labels[i] == all_preds[i]+1:
+          acc += 1.
+      acc = acc * 100. / num_images
+      print 'Evaluation:'
+      print '  Timing:'
+      print '    im_read: {:.3f}s im_cls: {:.3f}'.format( \
+        _t['im_read'].average_time / mc.BATCH_SIZE, \
+        _t['im_cls'].average_time / mc.BATCH_SIZE)
+      print '  Accuracy: {:.2f}%'.format(acc)
+      
 
 def main(argv=None):  # pylint: disable=unused-argument
   if tf.gfile.Exists(FLAGS.eval_dir):

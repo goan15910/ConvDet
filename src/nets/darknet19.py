@@ -30,14 +30,14 @@ class DARKNET19(ModelSkeleton):
     self.pred_class_probs = tf.nn.softmax(
         tf.reshape(
             self.preds,
-            [-1, mc.CLASSES]
+            [-1, self.mc.CLASSES]
         ),
         name='pred_class_probs'
     )
 
     self.pred_class = tf.argmax(
         self.pred_class_probs,
-        axis=0,
+        axis=1,
         name='class_idx'
     )
 

@@ -18,6 +18,7 @@ def imagenet_config():
 
   # Network Architecture
   mc.BN = True
+  mc.LOAD_BN = True
 
   mc.IMAGE_WIDTH           = 224
   mc.IMAGE_HEIGHT          = 224

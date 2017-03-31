@@ -32,7 +32,7 @@ def base_model_config(dataset='PASCAL_VOC'):
   elif cfg.DATASET == 'KITTI':
     cfg.CLASS_NAMES = ('car', 'pedestrian', 'cyclist')
   elif cfg.DATASET == 'ILSVRC2013':
-    cfg.CLASS_NAMES = tuple(map(str, range(1000)))
+    cfg.CLASS_NAMES = tuple(map(str, range(1, 1001)))
 
   # number of categories to classify
   cfg.CLASSES = len(cfg.CLASS_NAMES)    
@@ -42,6 +42,7 @@ def base_model_config(dataset='PASCAL_VOC'):
 
   # Use batch normalization
   cfg.BN = False
+  cfg.LOAD_BN = False
 
   # ROI pooling output width
   cfg.GRID_POOL_WIDTH = 7

@@ -422,15 +422,20 @@ class ModelSkeleton:
     mc = self.mc
     use_pretrained_param = False
     if mc.LOAD_PRETRAINED_MODEL:
+      # TODO(jeff): add batch norm initialization
       cw = self.caffemodel_weight
       if layer_name in cw:
         # kernel_val = np.transpose(cw[layer_name][0], [2,3,1,0])
         kernel_val = cw[layer_name][0]
         bias_val = cw[layer_name][1]
+        if bn and mc.LOAD_BN:
+          scale_val = cw[layer_name][2]
+          mean_val = cw[layer_name][3]
+          var_val = cw[layer_name][4]
         # check the shape
         if (kernel_val.shape == 
               (size, size, inputs.get_shape().as_list()[-1], filters)) \
-           and (bias_val.shape == (filters, )):
+           and (bias_val.shape == (filters,)):
           use_pretrained_param = True
         else:
           print ('Shape of the pretrained parameter of {} does not match, '
@@ -475,8 +480,15 @@ class ModelSkeleton:
       conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
       
       if bn:
-        conv_bias = self._batch_norm(conv_bias, scope.name)
-        bn_vars = tf.get_collection(tf.GraphKeys.VARIABLES, scope=scope.name)
+        if mc.LOAD_BN:
+          scale_init = lambda shape,dtype,partition_info: tf.constant(scale_val, dtype=dtype)
+          mean_init = lambda shape,dtype,partition_info: tf.constant(mean_val, dtype=dtype)
+          var_init = lambda shape,dtype,partition_info: tf.constant(var_val, dtype=dtype)
+          param_init = {'gamma': scale_init, 'moving_mean': mean_init, 'moving_variance': var_init}
+        else:
+          param_init = None
+        conv_bias = self._batch_norm(conv_bias, param_init, scope.name)
+        bn_vars = tf.get_collection(tf.GraphKeys.VARIABLES, scope=scope.name+"_bn")
         self.model_params += bn_vars
 
       assert act in [None, 'relu', 'lrelu'], \
@@ -690,12 +702,14 @@ class ModelSkeleton:
   def _lrelu(self, inputs, scope, alpha=0.1):
     return tf.maximum(alpha * inputs, inputs, name='lrelu')
 
-  def _batch_norm(self, inputs, scope):
+  def _batch_norm(self, inputs, param_init, scope):
     return tf.cond(self.is_training, \
             lambda: tf.contrib.layers.batch_norm(inputs, is_training=True, \
-                             center=False, updates_collections=None, scope=scope+"_bn"), \
+                             center=False, param_initializers=param_init, updates_collections=None, \
+                             scope=scope+"_bn"), \
             lambda: tf.contrib.layers.batch_norm(inputs, is_training=False, \
-                             center=False, updates_collections=None, scope=scope+"_bn", reuse=True))
+                             center=False, updates_collections=None, param_initializers=param_init, \
+                             scope=scope+"_bn", reuse=True))
 
   def filter_prediction(self, boxes, probs, cls_idx):
     """Filter bounding box predictions with probability threshold and
