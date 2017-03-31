@@ -14,7 +14,6 @@ def imagenet_config():
  
   # Data Augmentation
   mc.DATA_AUGMENTATION     = True
-  mc.DATA_AUG_TYPE = 'YOLO'
 
   # Network Architecture
   mc.BN = True

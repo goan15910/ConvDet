@@ -48,13 +48,41 @@ def evaluate():
     mc.PRETRAINED_MODEL_PATH = FLAGS.pkl_path
     imdb = imagenet(FLAGS.image_set, FLAGS.data_path, mc)
 
-    assert FLAGS.net == 'darknet19', \
+    assert FLAGS.net in ['darknet19', 'vgg16'], \
         'Selected neural net architecture not supported: {}'.format(FLAGS.net)
-    model = DARKNET19(mc, FLAGS.gpu)
+    if FLAGS.net == 'darknet19':
+      model = DARKNET19(mc, FLAGS.gpu)
+    elif FLAGS.net == 'vgg16':
+      model = VGG16(mc, FLAGS.gpu)
     
-    init = tf.initialize_all_variables()
+    # save model size, flops, activations by layers
+    with open(os.path.join(FLAGS.eval_dir, 'model_metrics.txt'), 'w') as f:
+      f.write('Number of parameter by layer:\n')
+      count = 0
+      for c in model.model_size_counter:
+        f.write('\t{}: {}\n'.format(c[0], c[1]))
+        count += c[1]
+      f.write('\ttotal: {}\n'.format(count))
+
+      count = 0
+      f.write('\nActivation size by layer:\n')
+      for c in model.activation_counter:
+        f.write('\t{}: {}\n'.format(c[0], c[1]))
+        count += c[1]
+      f.write('\ttotal: {}\n'.format(count))
+
+      count = 0
+      f.write('\nNumber of flops by layer:\n')
+      for c in model.flop_counter:
+        f.write('\t{}: {}\n'.format(c[0], c[1]))
+        count += c[1]
+      f.write('\ttotal: {}\n'.format(count))
+    f.close()
+    print ('Model statistics saved to {}.'.format(
+      os.path.join(FLAGS.eval_dir, 'model_metrics.txt')))
+
+    init = tf.global_variables_initializer()
     
-    # TODO(jeff): add cls inference & evaluation
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
       # run init
       sess.run(init)
@@ -67,6 +95,7 @@ def evaluate():
 
       all_labels, all_preds = [], []
       for i in xrange(num_batches):
+        if i == 10: break
         print '{} / {}'.format(i+1, num_batches)
         _t['im_read'].tic()
         images, labels, scales = imdb.read_cls_batch(shuffle=False)
@@ -84,6 +113,7 @@ def evaluate():
       # evaluate
       acc = 0.
       for i in xrange(num_images):
+        if i == 320: break
         if all_labels[i] == all_preds[i]+1:
           acc += 1.
       acc = acc * 100. / num_images

@@ -592,23 +592,9 @@ class ModelSkeleton:
       input_shape = inputs.get_shape().as_list()
       if flatten:
         dim = input_shape[1]*input_shape[2]*input_shape[3]
-        inputs = tf.reshape(inputs, [-1, dim])
+        inputs = tf.reshape(inputs, [-1, dim]) # B x dim
         if use_pretrained_param:
           try:
-            # check the size before layout transform
-            assert kernel_val.shape == (hiddens, dim), \
-                'kernel shape error at {}'.format(layer_name)
-            kernel_val = np.reshape(
-                np.transpose(
-                    np.reshape(
-                        kernel_val, # O x (C*H*W)
-                        (hiddens, input_shape[3], input_shape[1], input_shape[2])
-                    ), # O x C x H x W
-                    (2, 3, 1, 0)
-                ), # H x W x C x O
-                (dim, -1)
-            ) # (H*W*C) x O
-            # check the size after layout transform
             assert kernel_val.shape == (dim, hiddens), \
                 'kernel shape error at {}'.format(layer_name)
           except:
@@ -620,7 +606,6 @@ class ModelSkeleton:
         dim = input_shape[1]
         if use_pretrained_param:
           try:
-            kernel_val = np.transpose(kernel_val, (1,0))
             assert kernel_val.shape == (dim, hiddens), \
                 'kernel shape error at {}'.format(layer_name)
           except:
@@ -654,7 +639,7 @@ class ModelSkeleton:
       # count layer stats
       self.model_size_counter.append((layer_name, (dim+1)*hiddens))
 
-      num_flops = 2 * dim * hidden + hidden
+      num_flops = 2 * dim * hiddens + hiddens
       if relu:
         num_flops += 2*hiddens
       self.flop_counter.append((layer_name, num_flops))

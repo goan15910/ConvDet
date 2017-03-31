@@ -4,15 +4,28 @@
 export PYTHONUNBUFFERED="True"
 
 GPU=$1
-DATASET=$2
-NET=darknet19
+NET=$2
+DATASET=$3
 
+case $NET in
+  darknet19)
+    echo "Use Darknet19"
+    PKL_PATH=./data/darknet/darknet19_weights_bn_bgr.pkl
+    ;;
+  vgg16)
+    echo "Use VGG16"
+    PKL_PATH=./data/VGG16/VGG_ILSVRC_16_layers_weights.pkl
+    ;;
+  *)
+    echo "No dataset given"
+    exit
+    ;;
+esac
 
 case $DATASET in
   ILSVRC2013)
     echo "Use ILSVRC2013 dataset"
     DATA_PATH=/tmp3/jeff/ILSVRC2013
-    PKL_PATH=./data/darknet/darknet19_weights_bn_bgr.pkl
     IMAGE_SET=val
     ;;
   *)
