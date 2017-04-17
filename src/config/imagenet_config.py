@@ -19,6 +19,9 @@ def imagenet_config():
   mc.BN = True
   mc.LOAD_BN = True
 
+  # Remove BGR mean
+  mc.SUB_BGR_MEANS = True
+
   mc.IMAGE_WIDTH           = 224
   mc.IMAGE_HEIGHT          = 224
   mc.BATCH_SIZE            = 32

@@ -422,7 +422,6 @@ class ModelSkeleton:
     mc = self.mc
     use_pretrained_param = False
     if mc.LOAD_PRETRAINED_MODEL:
-      # TODO(jeff): add batch norm initialization
       cw = self.caffemodel_weight
       if layer_name in cw:
         # kernel_val = np.transpose(cw[layer_name][0], [2,3,1,0])
@@ -592,7 +591,7 @@ class ModelSkeleton:
       input_shape = inputs.get_shape().as_list()
       if flatten:
         dim = input_shape[1]*input_shape[2]*input_shape[3]
-        inputs = tf.reshape(inputs, [-1, dim]) # B x dim
+        inputs = tf.reshape(inputs, [-1, dim]) # N x dim
         if use_pretrained_param:
           try:
             assert kernel_val.shape == (dim, hiddens), \
@@ -681,8 +680,22 @@ class ModelSkeleton:
           '({}, {}) are not divisible by stride {}'.format(w, h, stride)
       new_w = int(w / stride)
       new_h = int(h / stride)
-      new_c = int(c*stride*stride)
-      return tf.reshape(inputs, [n, new_w, new_h, new_c], name='reorg')
+      #new_c = int(c*stride*stride)
+      #return tf.reshape(inputs, [n, new_w, new_h, new_c], name='reorg')
+      return tf.map_fn(lambda x: _reorg(x, new_w, new_h, stride), inputs, name='reorg')
+
+  def _reorg(self, f_map, w, h, stride):
+    f_maps = []
+    for i in xrange(w):
+      rows = []
+      for j in xrange(h):
+        start = (i*stride, j*stride)
+        end = ((i+1)*stride, (j+1)*stride)
+        vec = tf.strided_slice(f_map, start, end, (1,1))
+        vec = tf.reshape(vec, [-1])
+        rows.append(vec)
+      f_maps.append(tf.stack(rows))
+    return tf.stack(f_maps)
 
   def _lrelu(self, inputs, scope, alpha=0.1):
     return tf.maximum(alpha * inputs, inputs, name='lrelu')

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: CUDA_VISIBLE_DEVICES=GPU ./scripts/cls_val.sh GPU DATASET
+# Usage: CUDA_VISIBLE_DEVICES=GPU ./scripts/cls_val.sh GPU NET DATASET
 
 export PYTHONUNBUFFERED="True"
 
@@ -14,7 +14,10 @@ case $NET in
     ;;
   vgg16)
     echo "Use VGG16"
-    PKL_PATH=./data/VGG16/VGG_ILSVRC_16_layers_weights.pkl
+    #PKL_PATH=./data/VGG16/VGG_ILSVRC_16_layers_weights.pkl
+    #PKL_PATH=./data/VGG16/VGG16_fc6_transpose.pkl
+    #PKL_PATH=./data/VGG16/VGG_faster.pkl
+    PKL_PATH=./data/VGG16/VGG_faster_fc6_transpose.pkl
     ;;
   *)
     echo "No dataset given"

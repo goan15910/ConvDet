@@ -114,6 +114,7 @@ def evaluate():
       acc = 0.
       for i in xrange(num_images):
         if i == 320: break
+        print 'label: {}, pred: {}'.format(all_labels[i], all_preds[i]+1)
         if all_labels[i] == all_preds[i]+1:
           acc += 1.
       acc = acc * 100. / num_images
