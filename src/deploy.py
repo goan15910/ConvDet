@@ -1,6 +1,5 @@
-# Author: Bichen Wu (bichen@berkeley.edu) 08/25/2016
 
-"""Evaluation"""
+"""Deploy"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -32,29 +31,21 @@ tf.app.flags.DEFINE_string('image_set', 'test',
 tf.app.flags.DEFINE_string('year', '2007',
                             """VOC challenge year. 2007 or 2012"""
                             """Only used for VOC data""")
-tf.app.flags.DEFINE_string('eval_dir', '/tmp3/jeff/squeezeDet/experiments/eval_val',
+tf.app.flags.DEFINE_string('eval_dir', '/tmp3/jeff/ConvDet/experiments/yolo_v2/deploy',
                             """Directory where to write event logs """)
-tf.app.flags.DEFINE_string('checkpoint_path', '/tmp3/jeff/squeezeDet/experiments/vgg16/train/PASCAL_VOC',
-                            """Path to the training checkpoint.""")
-tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 1,
-                             """How often to check if new cpt is saved.""")
-tf.app.flags.DEFINE_boolean('run_once', False,
-                             """Whether to run eval only once.""")
-tf.app.flags.DEFINE_string('net', 'squeezeDet',
+tf.app.flags.DEFINE_string('pretrained_model_path', '/tmp3/jeff/ConvDet/data/yolo/yolo_weights.pkl',
+                            """Path to pretrained weight path.""")
+tf.app.flags.DEFINE_string('net', 'yolo_v2',
                            """Neural net architecture.""")
 tf.app.flags.DEFINE_string('gpu', '0', """gpu id.""")
 
 
-def eval_once(saver, ckpt_path, summary_writer, imdb, model):
+def eval_once(saver, summary_writer, imdb, model):
 
   with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
 
     # Restores from checkpoint
-    saver.restore(sess, ckpt_path)
-    # Assuming model_checkpoint_path looks something like:
-    #   /ckpt_dir/model.ckpt-0,
-    # extract global_step from it.
-    global_step = ckpt_path.split('/')[-1].split('-')[-1]
+    global_step = '0'
 
     num_images = len(imdb.image_idx)
 
@@ -146,88 +137,33 @@ def eval_once(saver, ckpt_path, summary_writer, imdb, model):
 
 def evaluate():
   """Evaluate."""
-  assert FLAGS.net in ['vgg16', 'vgg16_v2', 'vgg16_v3', 'yolo_v2'], \
-      'Selected neural net architecture not supported: {}'.format(FLAGS.net)
-  assert FLAGS.dataset in ['KITTI', 'PASCAL_VOC', 'VID'], \
-      'Either KITTI / PASCAL_VOC / VID'
-  if FLAGS.dataset == 'KITTI':
-    if FLAGS.net == 'yolo_v2':
-      raise NotImplementedError
-    else:
-      mc = kitti_vgg16_config()
-    mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
-    imdb = kitti(FLAGS.train_set, FLAGS.data_path, mc)
+  assert FLAGS.dataset in ['PASCAL_VOC', 'VID'], \
+      'Either PASCAL_VOC / VID'
   elif FLAGS.dataset == 'PASCAL_VOC':
-    if FLAGS.net == 'yolo_v2':
-      mc = pascal_voc_yolo_config()
-    else:
-      mc = pascal_voc_vgg16_config()
+    mc = pascal_voc_yolo_config()
+    mc.BATCH_SIZE = 1 
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+    mc.LOAD_PRETRAINED_MODEL = True
     imdb = pascal_voc(FLAGS.train_set, FLAGS.year, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'VID':
-    if FLAGS.net == 'yolo_v2':
-      mc = vid_yolo_config()
-    else:
-      mc = vid_vgg16_config()
+    mc = vid_yolo_config()
+    mc.BATCH_SIZE = 1 
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
+    mc.LOAD_PRETRAINED_MODEL = True
     imdb = vid(FLAGS.train_set, FLAGS.data_path, mc)
 
   with tf.Graph().as_default() as g:
 
-    if FLAGS.dataset == 'KITTI':
-      mc.BATCH_SIZE = 1 # TODO(bichen): allow batch size > 1
-      mc.LOAD_PRETRAINED_MODEL = False
-      imdb = kitti(FLAGS.image_set, FLAGS.data_path, mc)
-    elif FLAGS.dataset == 'PASCAL_VOC':
-      mc.BATCH_SIZE = 1 # TODO(bichen): allow batch size > 1
-      mc.LOAD_PRETRAINED_MODEL = True
-      imdb = pascal_voc(FLAGS.image_set, FLAGS.year, FLAGS.data_path, mc)
-    elif FLAGS.dataset == 'VID':
-      mc.BATCH_SIZE = 1 # TODO(bichen): allow batch size > 1
-      mc.LOAD_PRETRAINED_MODEL = False
-      imdb = vid(FLAGS.image_set, FLAGS.data_path, mc)
-
-    if FLAGS.net == 'vgg16':
-      model = VGG16ConvDet(mc, FLAGS.gpu)
-    elif FLAGS.net == 'vgg16_v2':
-      model = VGG16ConvDetV2(mc, FLAGS.gpu)
-    elif FLAGS.net == 'vgg16_v3':
-      model = VGG16ConvDetV3(mc, FLAGS.gpu)
-    elif FLAGS.net == 'yolo_v2':
-      model = YOLO_V2(mc, FLAGS.gpu)
+    assert FLAGS.net == 'yolo_v2', \
+        'Support only yolo_v2'
+    model = YOLO_V2(mc, FLAGS.gpu)
 
     saver = tf.train.Saver(model.model_params)
 
     summary_writer = tf.train.SummaryWriter(FLAGS.eval_dir, g)
     
-    ckpts = set() 
-    while True:
-      if FLAGS.run_once:
-        # When run_once is true, checkpoint_path should point to the exact
-        # checkpoint file.
-        eval_once(saver, FLAGS.checkpoint_path, summary_writer, imdb, model)
-        return
-      else:
-        # When run_once is false, checkpoint_path should point to the directory
-        # that stores checkpoint files.
-        ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_path)
-        if ckpt and ckpt.model_checkpoint_path:
-          if ckpt.model_checkpoint_path in ckpts:
-            # Do not evaluate on the same checkpoint
-            print ('Wait {:d}s for new checkpoints to be saved ... '
-                      .format(FLAGS.eval_interval_secs))
-            time.sleep(FLAGS.eval_interval_secs)
-          else:
-            ckpts.add(ckpt.model_checkpoint_path)
-            print ('Evaluating {}...'.format(ckpt.model_checkpoint_path))
-            eval_once(saver, ckpt.model_checkpoint_path, 
-                      summary_writer, imdb, model)
-        else:
-          print('No checkpoint file found')
-          if not FLAGS.run_once:
-            print ('Wait {:d}s for new checkpoints to be saved ... '
-                      .format(FLAGS.eval_interval_secs))
-            time.sleep(FLAGS.eval_interval_secs)
+    # Evaluate only once for deployment
+    eval_once(saver, summary_writer, imdb, model)
 
 
 def main(argv=None):  # pylint: disable=unused-argument
