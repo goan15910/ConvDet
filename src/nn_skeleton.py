@@ -118,7 +118,159 @@ class ModelSkeleton:
     """NN architecture specification."""
     raise NotImplementedError
 
-  def _add_interpretation_graph(self):
+
+  def _trim_bbox(self, bboxes):
+    """Trim bbox for one batch"""
+    valid_xmax = self.mc.IMAGE_WIDTH - 1.0
+    valid_ymax = self.mc.IMAGE_HEIGHT - 1.0
+    new_bboxes = tf.stack(
+        [tf.clip_by_value(bboxes[..., 0], 0.0, valid_xmax),
+         tf.clip_by_value(bboxes[..., 1], 0.0, valid_ymax),
+         tf.clip_by_value(bboxes[..., 2], 0.0, valid_xmax),
+         tf.clip_by_value(bboxes[..., 3], 0.0, valid_ymax),
+         ],
+         axis=-1,
+    )
+    return new_bboxes
+
+
+  def _add_yolo_interpret_graph(self):
+    """Interpret yolo output."""
+    mc = self.mc
+
+    with tf.variable_scope('interpret_output') as scope:
+      # TODO(jeff): add summary
+      N = mc.BATCH_SIZE
+      H, W, B = mc.NET_OUT_SHAPE
+      C = mc.CLASSES
+      preds = self.preds 
+      preds = tf.reshape(
+          self.preds,
+          (N, H, W, B, 5+C)
+      )
+
+      # confidence
+      self.pred_conf = tf.sigmoid(
+          tf.reshape(
+              preds[:, :, :, :, 5],
+              (N, H, W, B, 1)
+          ),
+          name='conf'
+      )
+
+      # bbox scale
+      self.bbox_x = tf.reshape(
+          tf.add(
+              tf.sigmoid(
+                  preds[:, :, :, :, 0]
+              ),
+              tf.reshape(
+                  tf.to_float(
+                      tf.range(0, W, 1)
+                  ),
+                  (1, 1, W, 1)
+              )
+          ),
+          (N, H, W, B, 1),
+          name='bbox_x_ratio'
+      )
+      self.bbox_y = tf.reshape(
+          tf.add(
+              tf.sigmoid(
+                  preds[:, :, :, :, 1]
+              ),
+              tf.reshape(
+                  tf.to_float(
+                      tf.range(0, H, 1)
+                  ),
+                  (1, H, 1, 1)
+              )
+          ),
+          (N, H, W, B, 1),
+          name='bbox_y_ratio'
+      )
+      self.bbox_w = tf.reshape(
+          tf.multiply(
+              tf.exp(
+                  preds[:, :, :, :, 2]
+              ),
+              mc.ANCHOR_BOX[:, :, :, 0]
+          ),
+          (N, H, W, B, 1),
+          name='bbox_w_ratio'
+      )
+      self.bbox_h = tf.reshape(
+          tf.multiply(
+              tf.exp(
+                  preds[:, :, :, :, 3]
+              ),
+              mc.ANCHOR_BOX[:, :, :, 1]
+          ),
+          (N, H, W, B, 1),
+          name='bbox_h_ratio'
+      )
+      self.bbox = tf.stack(
+          [self.bbox_x,
+           self.bbox_y,
+           self.bbox_w,
+           self.bbox_h],
+          axis=4,
+          name='bbox_ratio'
+      )
+
+      # bbox prediction
+      w_scale = float(mc.IMAGE_WIDTH) / W
+      h_scale = float(mc.IMAGE_HEIGHT) / H
+      self.raw_boxes = tf.reshape(
+          tf.stack(
+              [self.bbox_x * w_scale,
+               self.bbox_y * h_scale,
+               self.bbox_w * w_scale,
+               self.bbox_h * h_scale],
+              axis=4
+          ),
+          (N, H*W*B, 4),
+          name='raw_bbox'
+      )
+      
+      # trim bbox
+      self.det_boxes = tf.py_func(
+          lambda x: util.bbox_transform_inv(x),
+          [self._trim_bbox(
+              tf.py_func(
+                  lambda x: util.bbox_transform(x),
+                  [self.raw_boxes],
+                  tf.float32
+              )
+          )],
+          tf.float32,
+          name='det_boxes'
+      )
+
+      # prob
+      self.probs = tf.multiply(
+          tf.nn.softmax(
+              preds[:, :, :, :, 5:]
+          ),
+          self.pred_conf,
+          name='probs'
+      )
+
+      # class prediction
+      self.det_probs = tf.reshape(
+          #tf.reduce_max(self.probs, 4),
+          self.probs,
+          (N, H*W*B, C),
+          name='score'
+      )
+      self.det_class = tf.reshape(
+          tf.argmax(self.probs, 4),
+          (N, H*W*B),
+          name='class_idx'
+      )
+
+
+  def _add_sqt_interpret_graph(self):
     """Interpret NN output."""
     mc = self.mc
 
@@ -263,43 +415,8 @@ class ModelSkeleton:
   
   def _add_yolo_loss_graph(self):
     """Define the YOLO loss operation."""
-    mc = self.mc
-
-    with tf.variable_scope('class_regression') as scope:
-      self.class_loss = tf.reduce_mean(
-          tf.nn.softmax_cross_entropy_with_logits(labels=self.input_mask*self.labels, \
-              logits=self.input_mask*self.pred_class_probs),
-          name='class_loss'
-      )
-      tf.add_to_collection('losses', self.class_loss)
-
-    with tf.variable_scope('confidence_score_regression') as scope:
-      input_mask = tf.reshape(self.input_mask, [mc.BATCH_SIZE, mc.ANCHORS])
-      self.conf_loss = tf.reduce_mean(
-          tf.reduce_sum(
-              tf.square((self.ious - self.pred_conf)) 
-              * (input_mask*mc.LOSS_COEF_CONF_POS \
-                 + (1-input_mask)*mc.LOSS_COEF_CONF_NEG),
-              reduction_indices=[1]
-          ),
-          name='confidence_loss'
-      )
-      tf.add_to_collection('losses', self.conf_loss)
-      tf.summary.scalar('mean iou', tf.reduce_sum(self.ious)/self.num_objects)
-
-    with tf.variable_scope('bounding_box_regression') as scope:
-      # TODO(jeff): modify to TRUE yolo bbox loss
-      self.bbox_loss = tf.multiply(
-          mc.LOSS_COEF_BBOX, 
-          tf.reduce_sum(
-              tf.square(self.input_mask * \
-                  (self.pred_box_delta-self.box_delta_input))),
-          name='bbox_loss'
-      )
-      tf.add_to_collection('losses', self.bbox_loss)
-
-    # add above losses as well as weight decay losses to form the total loss
-    self.loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
+    # TODO(jeff): add yolo loss graph
+    pass
 
 
   def _add_sqt_loss_graph(self):
@@ -682,7 +799,7 @@ class ModelSkeleton:
       new_h = int(h / stride)
       #new_c = int(c*stride*stride)
       #return tf.reshape(inputs, [n, new_w, new_h, new_c], name='reorg')
-      return tf.map_fn(lambda x: _reorg(x, new_w, new_h, stride), inputs, name='reorg')
+      return tf.map_fn(lambda x: self._reorg(x, new_w, new_h, stride), inputs, name='reorg')
 
   def _reorg(self, f_map, w, h, stride):
     f_maps = []
@@ -708,6 +825,49 @@ class ModelSkeleton:
             lambda: tf.contrib.layers.batch_norm(inputs, is_training=False, \
                              center=False, updates_collections=None, param_initializers=param_init, \
                              scope=scope+"_bn", reuse=True))
+
+  def filter_yolo_predict(self, boxes, probs, cls_idx):
+    """Filter yolo prediction with Thres and NMS.
+    
+    Args:
+      boxes: one batch boxes of shape (H*W*B, 4)
+      probs: one batch probs of shape (H*W*B, C)
+      cls_idx: one batch probs of shape (H*W*B,)
+    Returns:
+      final_boxes: filtered bbox of shape (K, 4)
+      final_probs: filtered probs of shape (K,)
+      final_class: filtered score of shape (K,)
+      # where K is the remaining box number
+    """
+    mc = self.mc
+
+    # Set prob of boxes below threshold to 0
+    probs *= probs > mc.PROB_THRESH
+
+    # NMS
+    final_boxes = []
+    final_probs = []
+    final_class = []
+
+    for c in xrange(mc.CLASSES):
+      sort_idx = probs[(cls_idx == c), c].argsort()[::-1]
+      sort_probs = probs[sort_idx, c] # (H*W*B,)
+      sort_boxes = boxes[sort_idx] # (H*W*B, 4)
+      for i in xrange(len(sort_boxes)):
+        boxi = sort_boxes[i]
+        if sort_probs[i] == 0: continue
+        for j in xrange(i+1, len(sort_boxes)):
+          boxj = sort_boxes[j]
+          if util.iou(boxi, boxj) > mc.NMS_THRESH:
+            sort_probs[j] = 0.
+        keep_idx = np.where(sort_probs)[0]
+        final_boxes.append(sort_boxes[keep_idx])
+        final_probs.append(sort_probs[keep_idx])
+        final_class.append(np.full(keep_idx.shape, c))
+    return (np.stack(final_boxes, axis=-1), 
+            np.stack(final_probs, axis=-1), 
+            np.stack(final_class, axis=-1))
+
 
   def filter_prediction(self, boxes, probs, cls_idx):
     """Filter bounding box predictions with probability threshold and

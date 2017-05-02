@@ -70,9 +70,10 @@ class pascal_voc(imdb):
         assert ymin >= 0.0 and ymin <= ymax, \
             'Invalid bounding box y-coord ymin {} or ymax {} at {}.xml' \
                 .format(ymin, ymax, index)
-        x, y, w, h = bbox_transform_inv([xmin, ymin, xmax, ymax])
+        x, y, w, h = bbox_transform_inv(np.array([xmin, ymin, xmax, ymax]))
         cls = self._class_to_idx[obj.find('name').text.lower().strip()]
         bboxes.append([x, y, w, h, cls])
+      bboxes = np.array(bboxes)
 
       idx2annotation[index] = bboxes
 
@@ -186,9 +187,10 @@ class pascal_voc(imdb):
         ymax = float(obj[7])
         score = float(obj[-1])
 
-        x, y, w, h = bbox_transform_inv([xmin, ymin, xmax, ymax])
+        x, y, w, h = bbox_transform_inv(np.array([xmin, ymin, xmax, ymax]))
         bboxes.append([x, y, w, h, cls, score])
       bboxes.sort(key=lambda x: x[-1], reverse=True)
+      bboxes = np.array(bboxes)
       self._det_rois[idx] = bboxes
 
     # do error analysis

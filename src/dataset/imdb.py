@@ -88,7 +88,6 @@ class imdb(object):
       if mc.SUB_BGR_MEANS:
         im = im.astype(np.float32, copy=False)
         im -= mc.BGR_MEANS
-        #im = im.astype(np.uint8, copy=False)
       orig_h, orig_w, _ = [float(v) for v in im.shape]
       im = cv2.resize(im, (mc.IMAGE_WIDTH, mc.IMAGE_HEIGHT))
       x_scale = mc.IMAGE_WIDTH/orig_w

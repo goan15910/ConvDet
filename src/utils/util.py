@@ -166,34 +166,33 @@ def bgr_to_rgb(ims):
   return out
 
 def bbox_transform(bbox):
-  """convert a bbox of form [cx, cy, w, h] to [xmin, ymin, xmax, ymax]. Works
-  for numpy array or list of tensors.
+  """convert a bbox of form [cx, cy, w, h] to [xmin, ymin, xmax, ymax].
   """
   with tf.variable_scope('bbox_transform') as scope:
-    cx, cy, w, h = bbox
-    out_box = [[]]*4
-    out_box[0] = cx-w/2
-    out_box[1] = cy-h/2
-    out_box[2] = cx+w/2
-    out_box[3] = cy+h/2
-
+    cx = bbox[..., 0]
+    cy = bbox[..., 1]
+    w  = bbox[..., 2]
+    h  = bbox[..., 3]
+    out_box = np.stack(
+        [cx-w/2, cy-h/2, cx+w/2, cy+h/2],
+        axis=-1
+    )
   return out_box
 
 def bbox_transform_inv(bbox):
-  """convert a bbox of form [xmin, ymin, xmax, ymax] to [cx, cy, w, h]. Works
-  for numpy array or list of tensors.
+  """convert a bbox of form [xmin, ymin, xmax, ymax] to [cx, cy, w, h].
   """
   with tf.variable_scope('bbox_transform_inv') as scope:
-    xmin, ymin, xmax, ymax = bbox
-    out_box = [[]]*4
-
-    width       = xmax - xmin + 1.0
-    height      = ymax - ymin + 1.0
-    out_box[0]  = xmin + 0.5*width 
-    out_box[1]  = ymin + 0.5*height
-    out_box[2]  = width
-    out_box[3]  = height
-
+    xmin = bbox[..., 0]
+    ymin = bbox[..., 1]
+    xmax = bbox[..., 2]
+    ymax = bbox[..., 3]
+    w = xmax - xmin + 1.0
+    h = ymax - ymin + 1.0
+    out_box = np.stack(
+        [xmin + 0.5*w, ymin + 0.5*h, w, h],
+        axis=-1
+    )
   return out_box
 
 def recolor(im, a = .1):

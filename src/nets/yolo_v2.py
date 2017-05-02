@@ -23,15 +23,10 @@ class YOLO_V2(ModelSkeleton):
 
       self.BN = mc.BN
       self._add_forward_graph()
-      self._add_interpretation_graph()
-      assert mc.LOSS_TYPE in ['SQT', 'YOLO'], \
-          'Loss type {0} not defined'.format(mc.LOSS_TYPE)
-      if mc.LOSS_TYPE == 'SQT':
-        self._add_sqt_loss_graph()
-      elif mc.LOSS_TYPE == 'YOLO':
-        self._add_yolo_loss_graph()
-      self._add_train_graph()
-      self._add_viz_graph()
+      self._add_yolo_interpret_graph()
+      #self._add_yolo_loss_graph()
+      #self._add_train_graph()
+      #self._add_viz_graph()
 
   def _add_forward_graph(self):
     """Build the VGG-16 model."""

@@ -10,6 +10,7 @@ from datetime import datetime
 import os.path
 import sys
 import time
+import math
 
 import numpy as np
 from six.moves import xrange
@@ -24,7 +25,7 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('dataset', 'PASCAL_VOC',
                            """PASCAL_VOC / KITTI""")
-tf.app.flags.DEFINE_string('data_path', '', """Root directory of data""")
+tf.app.flags.DEFINE_string('data_path', '/tmp3/jeff/VOCdevkit2007', """Root directory of data""")
 tf.app.flags.DEFINE_string('image_set', 'test',
                            """Only used for VOC data."""
                            """Can be train, trainval, val, or test""")
@@ -40,29 +41,35 @@ tf.app.flags.DEFINE_string('net', 'yolo_v2',
 tf.app.flags.DEFINE_string('gpu', '0', """gpu id.""")
 
 
-def eval_once(saver, summary_writer, imdb, model):
+def eval_once(saver, summary_writer, imdb, model, mc):
 
   with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
 
-    # Restores from checkpoint
-    global_step = '0'
+    # Initialize
+    init = tf.global_variables_initializer()
+    sess.run(init)
 
-    num_images = len(imdb.image_idx)
+    #global_step = '0'
+    global_step = None
 
-    all_boxes = [[[] for _ in xrange(num_images)]
+    n_imgs = len(imdb.image_idx)
+    n_iters = int(n_imgs / mc.BATCH_SIZE) + 1
+
+    all_boxes = [[[] for _ in xrange(n_imgs)]
                  for _ in xrange(imdb.num_classes)]
 
     _t = {'im_detect': Timer(), 'im_read': Timer(), 'misc': Timer()}
 
     num_detection = 0.0
-    for i in xrange(num_images):
+    for i in xrange(n_iters):
       _t['im_read'].tic()
       images, scales = imdb.read_image_batch(shuffle=False)
       _t['im_read'].toc()
 
       _t['im_detect'].tic()
-      det_boxes, det_probs, det_class = sess.run(
-          [model.det_boxes, model.det_probs, model.det_class],
+      # TODO(jeff): remove output other than det_boxes, det_probs, det_class
+      det_boxes, det_probs, det_class, probs, confs = sess.run(
+          [model.det_boxes, model.det_probs, model.det_class, model.probs, model.pred_conf],
           feed_dict={model.image_input:images, \
                      model.is_training: False, model.keep_prob: 1.0})
       _t['im_detect'].toc()
@@ -73,7 +80,7 @@ def eval_once(saver, summary_writer, imdb, model):
         det_boxes[j, :, 0::2] /= scales[j][0]
         det_boxes[j, :, 1::2] /= scales[j][1]
 
-        det_bbox, score, det_class = model.filter_prediction(
+        det_bbox, score, det_class = model.filter_yolo_predict(
             det_boxes[j], det_probs[j], det_class[j])
 
         num_detection += len(det_bbox)
@@ -83,7 +90,7 @@ def eval_once(saver, summary_writer, imdb, model):
 
       print ('im_detect: {:d}/{:d} im_read: {:.3f}s '
              'detect: {:.3f}s misc: {:.3f}s'.format(
-                i+1, num_images, _t['im_read'].average_time,
+                i+1, n_imgs, _t['im_read'].average_time,
                 _t['im_detect'].average_time, _t['misc'].average_time))
 
     print ('Evaluating detections...')
@@ -92,7 +99,7 @@ def eval_once(saver, summary_writer, imdb, model):
 
     print ('Evaluation summary:')
     print ('  Average number of detections per image: {}:'.format(
-      num_detection/num_images))
+      num_detection/n_imgs))
     print ('  Timing:')
     print ('    im_read: {:.3f}s detect: {:.3f}s misc: {:.3f}s'.format(
       _t['im_read'].average_time, _t['im_detect'].average_time,
@@ -102,24 +109,24 @@ def eval_once(saver, summary_writer, imdb, model):
     eval_summary_ops = []
     for cls, ap in zip(ap_names, aps):
       eval_summary_ops.append(
-          tf.scalar_summary('APs/'+cls, ap)
+          tf.summary.scalar('APs/'+cls, ap)
       )
       print ('    {}: {:.3f}'.format(cls, ap))
     print ('    Mean average precision: {:.3f}'.format(np.mean(aps)))
     eval_summary_ops.append(
-        tf.scalar_summary('APs/mAP', np.mean(aps))
+        tf.summary.scalar('APs/mAP', np.mean(aps))
     )
     eval_summary_ops.append(
-        tf.scalar_summary('timing/image_detect', _t['im_detect'].average_time)
+        tf.summary.scalar('timing/image_detect', _t['im_detect'].average_time)
     )
     eval_summary_ops.append(
-        tf.scalar_summary('timing/image_read', _t['im_read'].average_time)
+        tf.summary.scalar('timing/image_read', _t['im_read'].average_time)
     )
     eval_summary_ops.append(
-        tf.scalar_summary('timing/post_process', _t['misc'].average_time)
+        tf.summary.scalar('timing/post_process', _t['misc'].average_time)
     )
     eval_summary_ops.append(
-        tf.scalar_summary('num_detections_per_image', num_detection/num_images)
+        tf.summary.scalar('num_detections_per_image', num_detection/n_imgs)
     )
 
     print ('Analyzing detections...')
@@ -127,7 +134,7 @@ def eval_once(saver, summary_writer, imdb, model):
         FLAGS.eval_dir, global_step)
     for k, v in stats.iteritems():
       eval_summary_ops.append(
-          tf.scalar_summary(
+          tf.summary.scalar(
             'Detection Analysis/'+k, v)
       )
 
@@ -139,18 +146,16 @@ def evaluate():
   """Evaluate."""
   assert FLAGS.dataset in ['PASCAL_VOC', 'VID'], \
       'Either PASCAL_VOC / VID'
-  elif FLAGS.dataset == 'PASCAL_VOC':
+  if FLAGS.dataset == 'PASCAL_VOC':
     mc = pascal_voc_yolo_config()
-    mc.BATCH_SIZE = 1 
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     mc.LOAD_PRETRAINED_MODEL = True
-    imdb = pascal_voc(FLAGS.train_set, FLAGS.year, FLAGS.data_path, mc)
+    imdb = pascal_voc(FLAGS.image_set, FLAGS.year, FLAGS.data_path, mc)
   elif FLAGS.dataset == 'VID':
     mc = vid_yolo_config()
-    mc.BATCH_SIZE = 1 
     mc.PRETRAINED_MODEL_PATH = FLAGS.pretrained_model_path
     mc.LOAD_PRETRAINED_MODEL = True
-    imdb = vid(FLAGS.train_set, FLAGS.data_path, mc)
+    imdb = vid(FLAGS.image_set, FLAGS.data_path, mc)
 
   with tf.Graph().as_default() as g:
 
@@ -160,10 +165,10 @@ def evaluate():
 
     saver = tf.train.Saver(model.model_params)
 
-    summary_writer = tf.train.SummaryWriter(FLAGS.eval_dir, g)
+    summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
     
     # Evaluate only once for deployment
-    eval_once(saver, summary_writer, imdb, model)
+    eval_once(saver, summary_writer, imdb, model, mc)
 
 
 def main(argv=None):  # pylint: disable=unused-argument
