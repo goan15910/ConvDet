@@ -133,6 +133,24 @@ class ModelSkeleton:
     )
     return new_bboxes
 
+  def _smooth_softmax(self, logits):
+    """Smoothed version softmax"""
+    new_shape = logits.get_shape().as_list()
+    new_shape[-1] = 1
+    acts = tf.nn.softmax(
+        tf.subtract(
+            logits,
+            tf.reshape(
+                tf.reduce_max(
+                    logits,
+                    reduction_indices=-1
+                ),
+                new_shape
+            )
+        )
+    )
+    return acts
+
 
   def _add_yolo_interpret_graph(self):
     """Interpret yolo output."""
@@ -249,9 +267,7 @@ class ModelSkeleton:
 
       # prob
       self.probs = tf.multiply(
-          tf.nn.softmax(
-              preds[:, :, :, :, 5:]
-          ),
+          self._smooth_softmax(preds[:, :, :, :, 5:]),
           self.pred_conf,
           name='probs'
       )

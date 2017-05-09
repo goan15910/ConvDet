@@ -20,6 +20,7 @@ def pascal_voc_yolo_config():
 
   # Network Architecture
   mc.BN = True
+  mc.LOAD_BN = True
 
   mc.IMAGE_WIDTH           = 416
   mc.IMAGE_HEIGHT          = 416

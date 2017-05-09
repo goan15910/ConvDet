@@ -68,10 +68,16 @@ def eval_once(saver, summary_writer, imdb, model, mc):
 
       _t['im_detect'].tic()
       # TODO(jeff): remove output other than det_boxes, det_probs, det_class
-      det_boxes, det_probs, det_class, probs, confs = sess.run(
-          [model.det_boxes, model.det_probs, model.det_class, model.probs, model.pred_conf],
+      det_boxes, det_probs, det_class, probs, confs, \
+        conv13, reorg20, concat20 = sess.run(
+          [
+            model.det_boxes, model.det_probs, model.det_class, 
+            model.probs, model.pred_conf,
+            model.conv13, model.reorg20, model.concat20
+          ],
           feed_dict={model.image_input:images, \
-                     model.is_training: False, model.keep_prob: 1.0})
+                       model.is_training: False, model.keep_prob: 1.0}
+        )
       _t['im_detect'].toc()
 
       _t['misc'].tic()

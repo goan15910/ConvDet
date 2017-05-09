@@ -98,3 +98,7 @@ class YOLO_V2(ModelSkeleton):
       self.preds = self._conv_layer(
           'conv22', conv21, filters=num_output, size=1, stride=1,
           padding='SAME', xavier=False, act=None, stddev=0.0001)
+    self.conv13 = conv13
+    self.conv20 = conv20
+    self.reorg20 = reorg20
+    self.concat20 = concat20
