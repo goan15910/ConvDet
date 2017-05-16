@@ -836,9 +836,11 @@ class ModelSkeleton:
   def _batch_norm(self, inputs, param_init, scope):
     return tf.cond(self.is_training, \
             lambda: tf.contrib.layers.batch_norm(inputs, is_training=True, \
+                             scale=True, epsilon=1e-5, \
                              center=False, param_initializers=param_init, updates_collections=None, \
                              scope=scope+"_bn"), \
             lambda: tf.contrib.layers.batch_norm(inputs, is_training=False, \
+                             scale=True, epsilon=1e-5, \
                              center=False, updates_collections=None, param_initializers=param_init, \
                              scope=scope+"_bn", reuse=True))
 
